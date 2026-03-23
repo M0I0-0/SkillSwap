@@ -1,8 +1,126 @@
 body {
-    font-family: sans-serif;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    /* --- EL NUEVO FONDO EXÁCTO --- */
+    /* Usamos un degradado radial elíptico que comienza en la esquina superior izquierda (0% 0%) */
+    /* Crea una zona de azul #2563EB que se mezcla con morado #7C3AED, y luego se desvanece en un rosa/lavanda claro (#F3E8FF) para asomarse por el otro lado. */
+    background-image: radial-gradient(60% 120% at 0% 0%, #2563EB 0%, #7C3AED 60%, #F3E8FF 100%);
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    margin: 0;
+    color: #FFFFFF; /* Color de texto blanco predeterminado para el fondo */
+}
+
+.skillswap-page {
+    width: 100%;
+    max-width: 1200px; /* Ancho máximo para el contenido */
+    padding: 20px;
+}
+
+.skillswap-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.skillswap-info {
+    flex: 1;
+    padding-right: 50px;
+}
+
+.skillswap-title {
+    font-size: 3em;
+    margin-bottom: 5px;
+    color: #FFFFFF;
+}
+
+.skillswap-subtitle {
+    font-size: 1.5em;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #FFFFFF;
+}
+
+.skillswap-desc {
+    font-size: 1.2em;
+    color: #FFFFFF;
+    line-height: 1.5;
+}
+
+.login-panel {
+    /* Fondo blanco #FFFFFF con bordes redondeados y sombra */
+    background-color: #FFFFFF;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    width: 400px;
+}
+
+.login-panel-header h2 {
+    font-size: 2.5em;
+    margin-top: 0;
+    margin-bottom: 30px;
+    color: #6B7280; /* Color gris para el título del panel */
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #6B7280; /* Color gris para las etiquetas de los campos */
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #E5E7EB; /* Un gris muy claro para el borde por defecto */
+    border-radius: 10px;
+    font-size: 1em;
+    box-sizing: border-box; /* Asegura que el padding no afecte el ancho */
+    color: #6B7280; /* Color gris para el texto de entrada */
+}
+
+.input-group input::placeholder {
+    color: #A1A7AF; /* Un gris aún más claro para el marcador de posición */
+}
+
+.login-btn {
+    width: 100%;
+    padding: 15px;
+    /* El "otro azul" (#2563EB) para el estado normal */
+    background-color: #2563EB;
+    color: #FFFFFF; /* Texto blanco #FFFFFF */
+    border: none;
+    border-radius: 10px;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: background-color 0.3s ease; /* Transición suave para el hover */
+}
+
+.login-btn:hover {
+    /* El "azul hover" (#1E3A8A) para el estado hover */
+    background-color: #1E3A8A;
+}
+
+.register-text {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 1em;
+    color: #6B7280;
+}
+
+.register-link {
+    color: #6B7280;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.register-link:hover {
+    text-decoration: underline;
 }

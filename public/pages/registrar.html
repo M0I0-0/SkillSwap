@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skillswap - Registro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles/registrar.css">
+</head>
+<body>
+    <div class="container">
+        <main class="register-card">
+            <h1 class="main-title">Crea tu Cuenta</h1>
+            
+            <form class="register-form">
+                <p class="section-label">1. Datos Personales</p>
+                
+                <div class="grid-3">
+                    <div class="input-group">
+                        <label>Nombres</label>
+                        <input type="text" placeholder="Ingresa tus nombres">
+                    </div>
+                    <div class="input-group">
+                        <label>Apellido Paterno</label>
+                        <input type="text" placeholder="Ingresa tu apellido paterno">
+                    </div>
+                    <div class="input-group">
+                        <label>Apellido Materno</label>
+                        <input type="text" placeholder="Ingresa tu apellido materno">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Matrícula</label>
+                        <input type="text" placeholder="Ej. 1234567">
+                    </div>
+                    <div class="input-group">
+                        <label>Carrera</label>
+                        <input type="text" placeholder="Ej. Ingeniería en Sistemas">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Correo Electrónico</label>
+                        <div class="input-with-icon">
+                            <i class="fa-regular fa-envelope"></i>
+                            <input type="email" placeholder="Ingresa tu correo">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Intereses</label>
+                        <input type="text" placeholder="Intereses">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="input-group">
+                        <label>Disponibilidad</label>
+                        <select>
+                            <option>Selecciona tu horario</option>
+                            <option>Matutino</option>
+                            <option>Vespertino</option>
+                        </select>
+                    </div>
+
+                    <div class="security-stack">
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-lock"></i>
+                                <input type="password" placeholder="Ingresa tu nueva contraseña">
+                            </div>
+                            <span class="helper-text">Mín. 8 dígitos, números, mayúscula y carácter especial.</span>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>Confirmar Contraseña</label>
+                            <div class="input-with-icon">
+                                <i class="fa-solid fa-lock"></i>
+                                <input type="password" placeholder="Confirma tu contraseña">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="create-btn">Crear Cuenta</button>
+            </form>
+        </main>
+
+        <button class="back-btn">
+            <a href="/index">
+                <i class="fa-solid fa-arrow-left"></i> Regresar al menú principal
+            </a>
+        </button>
+    </div>
+</body>
+</html>
