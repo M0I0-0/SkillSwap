@@ -150,3 +150,23 @@ body {
     .grid-3, .grid-2 { grid-template-columns: 1fr; }
     .register-card { padding: 30px 20px; }
 }
+.error-message {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #DC2626;
+    min-height: 18px;
+}
+
+.input-error {
+    border: 1px solid #DC2626 !important;
+    background-color: #FEF2F2 !important;
+}
+
+.input-success {
+    border: 1px solid #16A34A !important;
+}
+
+.input-group.has-error label {
+    color: #DC2626;
+}

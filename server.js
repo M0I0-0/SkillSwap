@@ -17,3 +17,8 @@ app.get('/registrar', (req, res) => {
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
 });
+
+app.post("/registrar", (req, res) => {
+    console.log(req.body);
+    res.send("Registro recibido");
+});
