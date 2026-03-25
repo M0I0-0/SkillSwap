@@ -1,7 +1,6 @@
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 
-// ruta al archivo real dentro de la misma carpeta DB
 const dbPath = path.join(__dirname, "skillswap.db");
 
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -14,17 +13,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 module.exports = db;
 
-// Crear tabla de usuarios si no existe
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (
+// 👇 SOLO asegurar que exista la tabla correcta
+db.run(`CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE,
-    password TEXT
-  )`, (err) => {
-    if (err) {
-      console.error("Error creando tabla:", err.message);
-    } else {
-      console.log("Tabla 'users' creada o ya existe.");
-    }
-  });
-});
+    nombres TEXT,
+    apellido_paterno TEXT,
+    apellido_materno TEXT,
+    matricula TEXT UNIQUE,
+    carrera TEXT,
+    correo TEXT UNIQUE,
+    intereses TEXT,
+    disponibilidad TEXT,
+    password TEXT,
+    creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
