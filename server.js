@@ -20,6 +20,10 @@ app.get('/registrar', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'registrar.html'));
 });
 
+app.get('/RecContrasena', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'RecContrasena.html'));
+});
+
 app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
 });
