@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recuperar Contraseña - Skillswap</title>
   <link rel="stylesheet" href="/styles/RecContrasena.css">
 </head>
@@ -20,12 +21,15 @@
       <h2>Recuperar Contraseña</h2>
       <p>Ingresa tu correo electrónico y te enviaremos instrucciones.</p>
 
-      <div class="input-group">
-        <label>Correo Electrónico</label>
-        <input type="email" placeholder="Ingresa tu correo">
-      </div>
+      <form id="recover-form">
+        <div class="input-group">
+          <label for="recover-email">Correo Electrónico</label>
+          <input id="recover-email" name="email" type="email" placeholder="Ingresa tu correo" required>
+        </div>
 
-      <button class="btn">Enviar Instrucciones</button>
+        <p id="recover-message" class="status-message" aria-live="polite"></p>
+        <button type="submit" class="btn">Enviar Instrucciones</button>
+      </form>
 
       <div class="footer">
         ¿Recordaste tu contraseña? <a href="/">Inicia Sesión</a>
@@ -34,5 +38,6 @@
 
   </div>
 
+  <script src="/js/recuperar.js"></script>
 </body>
 </html>

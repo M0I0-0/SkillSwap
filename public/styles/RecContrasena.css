@@ -120,6 +120,22 @@ body {
   transform: translateY(-1px);
 }
 
+.status-message {
+  min-height: 24px;
+  margin: -10px 0 20px;
+  font-size: 0.95rem;
+  text-align: center;
+  color: #687086;
+}
+
+.status-message.error {
+  color: #c62828;
+}
+
+.status-message.success {
+  color: #1b7f3b;
+}
+
 .footer {
   margin-top: 28px;
   text-align: center;

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Contraseña - SkillSwap</title>
+  <link rel="stylesheet" href="/styles/RecContrasena.css">
+</head>
+<body>
+  <div class="container">
+    <div class="left">
+      <h1>Skillswap</h1>
+      <p>Crea una nueva contraseña segura para volver a entrar a tu cuenta.</p>
+    </div>
+
+    <div class="card">
+      <h2>Nueva Contraseña</h2>
+      <p>Ingresa una contraseña nueva de al menos 8 caracteres.</p>
+
+      <form id="reset-form">
+        <div class="input-group">
+          <label for="new-password">Nueva Contraseña</label>
+          <input id="new-password" name="password" type="password" placeholder="Escribe tu nueva contraseña" minlength="8" required>
+        </div>
+
+        <p id="reset-message" class="status-message" aria-live="polite"></p>
+        <button type="submit" class="btn">Guardar Contraseña</button>
+      </form>
+
+      <div class="footer">
+        ¿Ya no necesitas cambiarla? <a href="/">Volver al inicio</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/reset-password.js"></script>
+</body>
+</html>

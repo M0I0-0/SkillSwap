@@ -13,7 +13,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 module.exports = db;
 
-// 👇 SOLO asegurar que exista la tabla correcta
+// Asegura que exista la tabla principal.
 db.run(`CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombres TEXT,
@@ -27,3 +27,36 @@ db.run(`CREATE TABLE IF NOT EXISTS usuarios (
     password TEXT,
     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
+
+function ensureColumn(tableName, columnName, definition) {
+  db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
+    if (err) {
+      console.error(`Error leyendo columnas de ${tableName}:`, err.message);
+      return;
+    }
+
+    const exists = columns.some((column) => column.name === columnName);
+    if (exists) {
+      return;
+    }
+
+    db.run(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`,
+      (alterErr) => {
+        if (alterErr) {
+          console.error(
+            `Error agregando columna ${columnName} en ${tableName}:`,
+            alterErr.message
+          );
+          return;
+        }
+
+        console.log(`✅ Columna ${columnName} agregada a ${tableName}`);
+      }
+    );
+  });
+}
+
+// Migración automática para recuperación de contraseña.
+ensureColumn("usuarios", "reset_token", "TEXT");
+ensureColumn("usuarios", "reset_exp", "INTEGER");
