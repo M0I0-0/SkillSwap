@@ -136,6 +136,10 @@ app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
 });
 
+app.get('/perfil', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'perfil.html'));
+});
+
 // 🔥 REGISTRO COMPLETO
 app.post("/registrar", async (req, res) => {
     const {
