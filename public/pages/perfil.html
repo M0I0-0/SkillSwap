@@ -1,0 +1,435 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.p-wrap{background:var(--color-background-tertiary);font-family:var(--font-sans);}
+.p-nav{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);padding:0 24px;height:56px;display:flex;align-items:center;gap:32px;}
+.p-logo{font-size:18px;font-weight:500;color:var(--color-text-primary);display:flex;align-items:center;gap:8px;}
+.p-logo-icon{width:28px;height:28px;background:#1D9E75;border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.p-nav-links{display:flex;gap:4px;flex:1;}
+.p-nav-link{font-size:13px;color:var(--color-text-secondary);padding:6px 12px;border-radius:var(--border-radius-md);cursor:pointer;border:none;background:none;}
+.p-nav-link:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
+.p-avatar-sm{width:32px;height:32px;border-radius:50%;background:#9FE1CB;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:#085041;border:2px solid #5DCAA5;margin-left:auto;}
+
+.p-body{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px);}
+.p-sidebar{background:var(--color-background-primary);border-right:0.5px solid var(--color-border-tertiary);padding:20px 12px;display:flex;flex-direction:column;gap:2px;}
+.p-side-label{font-size:11px;font-weight:500;color:var(--color-text-tertiary);letter-spacing:.06em;padding:12px 10px 6px;text-transform:uppercase;}
+.p-side-item{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--color-text-secondary);padding:8px 10px;border-radius:var(--border-radius-md);cursor:pointer;}
+.p-side-item:hover{background:var(--color-background-secondary);color:var(--color-text-primary);}
+.p-side-item.active{background:#E1F5EE;color:#0F6E56;font-weight:500;}
+.p-side-icon{width:16px;height:16px;flex-shrink:0;}
+.p-side-divider{height:0.5px;background:var(--color-border-tertiary);margin:8px 10px;}
+
+.p-main{padding:28px 32px;display:flex;flex-direction:column;gap:24px;max-width:760px;}
+
+.p-section{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;}
+.p-section-head{padding:16px 20px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between;}
+.p-section-title{font-size:15px;font-weight:500;color:var(--color-text-primary);}
+.p-section-body{padding:20px;}
+
+.p-profile-hero{display:flex;align-items:center;gap:20px;margin-bottom:20px;}
+.p-avatar-lg{width:72px;height:72px;border-radius:50%;background:#9FE1CB;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;color:#085041;border:3px solid #5DCAA5;flex-shrink:0;}
+.p-avatar-info{flex:1;}
+.p-avatar-name{font-size:20px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px;}
+.p-avatar-meta{font-size:13px;color:var(--color-text-secondary);}
+.p-avatar-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 10px;border-radius:20px;background:#E1F5EE;color:#085041;font-weight:500;margin-top:6px;}
+.p-change-photo{font-size:12px;color:#1D9E75;cursor:pointer;border:0.5px solid #5DCAA5;background:#E1F5EE;padding:5px 12px;border-radius:var(--border-radius-md);}
+.p-change-photo:hover{background:#9FE1CB;}
+
+.p-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.p-form-full{grid-column:1/-1;}
+.p-field{display:flex;flex-direction:column;gap:5px;}
+.p-label{font-size:12px;font-weight:500;color:var(--color-text-secondary);}
+.p-input{height:36px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:0 12px;font-size:14px;font-family:var(--font-sans);color:var(--color-text-primary);background:var(--color-background-primary);outline:none;}
+.p-input:focus{border-color:#1D9E75;box-shadow:0 0 0 2px #E1F5EE;}
+.p-select{height:36px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:0 12px;font-size:14px;font-family:var(--font-sans);color:var(--color-text-primary);background:var(--color-background-primary);outline:none;}
+.p-hint{font-size:11px;color:var(--color-text-tertiary);}
+
+.p-tags-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);min-height:40px;align-items:center;}
+.p-tag{display:flex;align-items:center;gap:5px;font-size:12px;padding:3px 10px;border-radius:20px;background:#E1F5EE;color:#085041;font-weight:500;}
+.p-tag-remove{width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#0F6E56;font-size:14px;line-height:1;}
+.p-tag-add{font-size:12px;color:var(--color-text-tertiary);cursor:pointer;padding:3px 8px;border:0.5px dashed var(--color-border-secondary);border-radius:20px;}
+.p-tag-add:hover{border-color:#1D9E75;color:#1D9E75;}
+
+.p-level-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.p-level-label{font-size:12px;color:var(--color-text-secondary);width:90px;flex-shrink:0;}
+.p-level-pills{display:flex;gap:4px;}
+.p-level-pill{font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid var(--color-border-secondary);cursor:pointer;color:var(--color-text-secondary);background:var(--color-background-primary);}
+.p-level-pill.sel-b{background:#E6F1FB;color:#185FA5;border-color:#85B7EB;}
+.p-level-pill.sel-i{background:#FAEEDA;color:#854F0B;border-color:#EF9F27;}
+.p-level-pill.sel-a{background:#FAECE7;color:#993C1D;border-color:#F0997B;}
+
+.p-schedule-grid{display:grid;grid-template-columns:80px repeat(7,1fr);gap:1px;background:var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;font-size:11px;}
+.p-sch-cell{background:var(--color-background-primary);padding:6px 4px;text-align:center;cursor:pointer;color:var(--color-text-secondary);user-select:none;}
+.p-sch-cell:hover{background:var(--color-background-secondary);}
+.p-sch-cell.header{font-weight:500;color:var(--color-text-primary);cursor:default;background:var(--color-background-secondary);}
+.p-sch-cell.selected{background:#E1F5EE;color:#085041;font-weight:500;}
+.p-sch-cell.time{cursor:default;color:var(--color-text-tertiary);font-size:10px;}
+
+.p-visibility-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.p-visibility-row:last-child{border-bottom:none;}
+.p-vis-info{}
+.p-vis-title{font-size:13px;font-weight:500;color:var(--color-text-primary);}
+.p-vis-desc{font-size:12px;color:var(--color-text-secondary);margin-top:2px;}
+.p-toggle{width:36px;height:20px;border-radius:20px;border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);display:flex;align-items:center;padding:2px;cursor:pointer;flex-shrink:0;transition:background .2s;}
+.p-toggle.on{background:#1D9E75;border-color:#0F6E56;}
+.p-toggle-thumb{width:14px;height:14px;border-radius:50%;background:var(--color-text-tertiary);transition:transform .2s;}
+.p-toggle.on .p-toggle-thumb{background:white;transform:translateX(16px);}
+
+.p-notif-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.p-notif-row:last-child{border-bottom:none;}
+.p-notif-label{font-size:13px;color:var(--color-text-primary);}
+.p-notif-desc{font-size:11px;color:var(--color-text-tertiary);margin-top:1px;}
+.p-notif-checks{display:flex;gap:12px;align-items:center;}
+.p-check-label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary);}
+
+.p-danger-btn{font-size:13px;color:#A32D2D;border:0.5px solid #F09595;background:#FCEBEB;padding:7px 16px;border-radius:var(--border-radius-md);cursor:pointer;font-family:var(--font-sans);}
+.p-danger-btn:hover{background:#F7C1C1;}
+.p-save-btn{font-size:13px;color:#085041;border:0.5px solid #5DCAA5;background:#E1F5EE;padding:7px 20px;border-radius:var(--border-radius-md);cursor:pointer;font-family:var(--font-sans);font-weight:500;}
+.p-save-btn:hover{background:#9FE1CB;}
+.p-actions{display:flex;justify-content:flex-end;gap:8px;padding-top:8px;}
+
+.p-divider{height:0.5px;background:var(--color-border-tertiary);}
+.p-pw-link{font-size:13px;color:#1D9E75;cursor:pointer;}
+.p-pw-link:hover{text-decoration:underline;}
+</style>
+
+<div class="p-wrap">
+<nav class="p-nav">
+  <div class="p-logo">
+    <div class="p-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8C3 5.24 5.24 3 8 3s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5z" stroke="white" stroke-width="1.5"/><path d="M6 8l1.5 1.5L10 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    SkillSwap
+  </div>
+  <div class="p-nav-links">
+    <button class="p-nav-link">Inicio</button>
+    <button class="p-nav-link">Enseñar</button>
+    <button class="p-nav-link">Mis cursos</button>
+    <button class="p-nav-link">Historial</button>
+  </div>
+  <div class="p-avatar-sm">CA</div>
+</nav>
+
+<div class="p-body">
+<aside class="p-sidebar">
+  <div class="p-side-label">Mi cuenta</div>
+  <div class="p-side-item active">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Perfil
+  </div>
+  <div class="p-side-item">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.2"/><path d="M5 8h6M5 5.5h6M5 10.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Habilidades
+  </div>
+  <div class="p-side-item">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Disponibilidad
+  </div>
+  <div class="p-side-divider"></div>
+  <div class="p-side-label">Configuración</div>
+  <div class="p-side-item">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><path d="M8 10a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v1.5M8 12.5V14M14 8h-1.5M3.5 8H2M12.2 3.8l-1.1 1.1M4.9 11.1l-1.1 1.1M12.2 12.2l-1.1-1.1M4.9 4.9L3.8 3.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Privacidad
+  </div>
+  <div class="p-side-item">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Notificaciones
+  </div>
+  <div class="p-side-item">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="11" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M5 11V8l3-5 3 5v3" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+    Seguridad
+  </div>
+  <div class="p-side-divider"></div>
+  <div class="p-side-item" style="color:#A32D2D;">
+    <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><path d="M10 3h3v10h-3M6 11l-4-3 4-3M2 8h8" stroke="#A32D2D" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Cerrar sesión
+  </div>
+</aside>
+
+<main class="p-main">
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Información personal</span>
+      <button class="p-save-btn">Guardar cambios</button>
+    </div>
+    <div class="p-section-body">
+      <div class="p-profile-hero">
+        <div class="p-avatar-lg">CA</div>
+        <div class="p-avatar-info">
+          <div class="p-avatar-name">Carlos Ávila</div>
+          <div class="p-avatar-meta">carlos.avila@universidad.edu.mx</div>
+          <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+            <span class="p-avatar-badge">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/><path d="M3 5l1.5 1.5L7 3.5" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Verificado
+            </span>
+          </div>
+        </div>
+        <button class="p-change-photo">Cambiar foto</button>
+      </div>
+
+      <div class="p-form-grid">
+        <div class="p-field">
+          <label class="p-label">Nombre completo</label>
+          <input class="p-input" value="Carlos Ávila Mendoza" />
+        </div>
+        <div class="p-field">
+          <label class="p-label">Carrera</label>
+          <select class="p-select">
+            <option>Ingeniería en Sistemas</option>
+            <option>Ingeniería Industrial</option>
+            <option>Licenciatura en Matemáticas</option>
+            <option>Otra carrera</option>
+          </select>
+        </div>
+        <div class="p-field p-form-full">
+          <label class="p-label">Correo institucional</label>
+          <input class="p-input" value="carlos.avila@universidad.edu.mx" style="color:var(--color-text-secondary);" readonly />
+          <span class="p-hint">El correo no puede modificarse. Es tu identificador institucional.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Intereses y habilidades</span>
+    </div>
+    <div class="p-section-body" style="display:flex;flex-direction:column;gap:18px;">
+      <div class="p-field">
+        <label class="p-label">Áreas de interés</label>
+        <div class="p-tags-wrap" id="tags-wrap">
+          <span class="p-tag">Programación <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
+          <span class="p-tag">Matemáticas <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
+          <span class="p-tag">Física <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
+          <span class="p-tag-add" onclick="addTag()">+ Agregar interés</span>
+        </div>
+      </div>
+      <div class="p-divider"></div>
+      <div>
+        <div class="p-label" style="margin-bottom:10px;">Nivel por habilidad que puedes enseñar</div>
+        <div class="p-level-row">
+          <span class="p-level-label">Programación</span>
+          <div class="p-level-pills">
+            <span class="p-level-pill" onclick="setLevel(this,'b')">Básico</span>
+            <span class="p-level-pill sel-i" onclick="setLevel(this,'i')">Intermedio</span>
+            <span class="p-level-pill" onclick="setLevel(this,'a')">Avanzado</span>
+          </div>
+        </div>
+        <div class="p-level-row">
+          <span class="p-level-label">Matemáticas</span>
+          <div class="p-level-pills">
+            <span class="p-level-pill" onclick="setLevel(this,'b')">Básico</span>
+            <span class="p-level-pill" onclick="setLevel(this,'i')">Intermedio</span>
+            <span class="p-level-pill sel-a" onclick="setLevel(this,'a')">Avanzado</span>
+          </div>
+        </div>
+        <div class="p-level-row">
+          <span class="p-level-label">Física</span>
+          <div class="p-level-pills">
+            <span class="p-level-pill sel-b" onclick="setLevel(this,'b')">Básico</span>
+            <span class="p-level-pill" onclick="setLevel(this,'i')">Intermedio</span>
+            <span class="p-level-pill" onclick="setLevel(this,'a')">Avanzado</span>
+          </div>
+        </div>
+      </div>
+      <div class="p-actions">
+        <button class="p-save-btn">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Disponibilidad semanal</span>
+      <span style="font-size:12px;color:var(--color-text-tertiary);">Toca una celda para activar/desactivar</span>
+    </div>
+    <div class="p-section-body">
+      <div class="p-schedule-grid" id="sched"></div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:12px;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary);">
+          <div style="width:12px;height:12px;border-radius:3px;background:#E1F5EE;border:0.5px solid #5DCAA5;"></div>
+          Disponible
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--color-text-secondary);">
+          <div style="width:12px;height:12px;border-radius:3px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);"></div>
+          No disponible
+        </div>
+      </div>
+      <div class="p-actions" style="margin-top:16px;">
+        <button class="p-save-btn">Guardar disponibilidad</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Privacidad del perfil</span>
+    </div>
+    <div class="p-section-body">
+      <div class="p-visibility-row">
+        <div class="p-vis-info">
+          <div class="p-vis-title">Perfil público</div>
+          <div class="p-vis-desc">Cualquier estudiante registrado puede ver tu perfil completo</div>
+        </div>
+        <div class="p-toggle on" onclick="toggleMe(this)"><div class="p-toggle-thumb"></div></div>
+      </div>
+      <div class="p-visibility-row">
+        <div class="p-vis-info">
+          <div class="p-vis-title">Solo visible para mis matches</div>
+          <div class="p-vis-desc">Tu perfil solo aparece para usuarios con los que hiciste match</div>
+        </div>
+        <div class="p-toggle" onclick="toggleMe(this)"><div class="p-toggle-thumb"></div></div>
+      </div>
+      <div class="p-visibility-row">
+        <div class="p-vis-info">
+          <div class="p-vis-title">Mostrar horario en mi perfil</div>
+          <div class="p-vis-desc">Otros estudiantes pueden ver tu disponibilidad</div>
+        </div>
+        <div class="p-toggle on" onclick="toggleMe(this)"><div class="p-toggle-thumb"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Notificaciones</span>
+    </div>
+    <div class="p-section-body">
+      <div style="display:grid;grid-template-columns:1fr 80px 80px;gap:8px;align-items:center;margin-bottom:10px;">
+        <div></div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-align:center;">App</div>
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-align:center;">Correo</div>
+      </div>
+      <div class="p-notif-row">
+        <div><div class="p-notif-label">Nuevos matches</div><div class="p-notif-desc">Cuando el sistema encuentre usuarios compatibles</div></div>
+        <div class="p-notif-checks">
+          <label class="p-check-label"><input type="checkbox" checked /> App</label>
+          <label class="p-check-label"><input type="checkbox" checked /> Correo</label>
+        </div>
+      </div>
+      <div class="p-notif-row">
+        <div><div class="p-notif-label">Solicitudes recibidas</div><div class="p-notif-desc">Cuando alguien quiera iniciar un intercambio contigo</div></div>
+        <div class="p-notif-checks">
+          <label class="p-check-label"><input type="checkbox" checked /> App</label>
+          <label class="p-check-label"><input type="checkbox" /> Correo</label>
+        </div>
+      </div>
+      <div class="p-notif-row">
+        <div><div class="p-notif-label">Mensajes nuevos</div><div class="p-notif-desc">Mensajes en tu chat</div></div>
+        <div class="p-notif-checks">
+          <label class="p-check-label"><input type="checkbox" checked /> App</label>
+          <label class="p-check-label"><input type="checkbox" /> Correo</label>
+        </div>
+      </div>
+      <div class="p-notif-row">
+        <div><div class="p-notif-label">Calificaciones</div><div class="p-notif-desc">Cuando un alumno califique tu curso</div></div>
+        <div class="p-notif-checks">
+          <label class="p-check-label"><input type="checkbox" checked /> App</label>
+          <label class="p-check-label"><input type="checkbox" checked /> Correo</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p-section">
+    <div class="p-section-head">
+      <span class="p-section-title">Seguridad</span>
+    </div>
+    <div class="p-section-body" style="display:flex;flex-direction:column;gap:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">Contraseña</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">Última actualización hace 3 meses</div>
+        </div>
+        <span class="p-pw-link">Cambiar contraseña</span>
+      </div>
+      <div class="p-divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);">Sesión automática</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">La sesión se cierra después de inactividad</div>
+        </div>
+        <div class="p-toggle on" onclick="toggleMe(this)"><div class="p-toggle-thumb"></div></div>
+      </div>
+      <div class="p-divider"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:#A32D2D;">Eliminar cuenta</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px;">Esta acción es permanente e irreversible</div>
+        </div>
+        <button class="p-danger-btn">Eliminar mi cuenta</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+
+<script>
+const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const times = ['8–10','10–12','12–14','14–16','16–18','18–20'];
+const selected = new Set(['0-0','0-2','1-0','1-2','2-1','3-3','4-3']);
+
+function buildSched() {
+  const g = document.getElementById('sched');
+  if (!g) return;
+  g.innerHTML = '';
+  const corner = document.createElement('div');
+  corner.className = 'p-sch-cell header';
+  g.appendChild(corner);
+  days.forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'p-sch-cell header';
+    h.textContent = d;
+    g.appendChild(h);
+  });
+  times.forEach((t, ti) => {
+    const tc = document.createElement('div');
+    tc.className = 'p-sch-cell time';
+    tc.textContent = t;
+    g.appendChild(tc);
+    days.forEach((_, di) => {
+      const k = di + '-' + ti;
+      const c = document.createElement('div');
+      c.className = 'p-sch-cell' + (selected.has(k) ? ' selected' : '');
+      c.onclick = () => {
+        if (selected.has(k)) { selected.delete(k); c.classList.remove('selected'); }
+        else { selected.add(k); c.classList.add('selected'); }
+      };
+      g.appendChild(c);
+    });
+  });
+}
+
+function toggleMe(el) {
+  el.classList.toggle('on');
+}
+
+function removeTag(btn) {
+  btn.parentElement.remove();
+}
+
+function addTag() {
+  const name = prompt('Nuevo interés:');
+  if (!name || !name.trim()) return;
+  const wrap = document.getElementById('tags-wrap');
+  const addBtn = wrap.querySelector('.p-tag-add');
+  const tag = document.createElement('span');
+  tag.className = 'p-tag';
+  tag.innerHTML = name.trim() + ' <span class="p-tag-remove" onclick="removeTag(this)">×</span>';
+  wrap.insertBefore(tag, addBtn);
+}
+
+function setLevel(el, type) {
+  const pills = el.parentElement.querySelectorAll('.p-level-pill');
+  pills.forEach(p => { p.className = 'p-level-pill'; });
+  if (type === 'b') el.className = 'p-level-pill sel-b';
+  else if (type === 'i') el.className = 'p-level-pill sel-i';
+  else el.className = 'p-level-pill sel-a';
+}
+
+buildSched();
+</script>
