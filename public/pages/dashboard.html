@@ -1,613 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillSwap - Dashboard</title>
+  <link rel="stylesheet" href="/styles/dashboard.css">
+</head>
+<body>
+  <div class="ss-wrap">
+    <nav class="ss-nav">
+      <div class="ss-logo">
+        <div class="ss-logo-icon">
+          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 8C3 5.24 5.24 3 8 3s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5z" stroke="white" stroke-width="1.5"/>
+            <path d="M6 8l1.5 1.5L10 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        SkillSwap
+      </div>
 
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font-sans); }
+      <div class="ss-nav-links">
+        <button class="ss-nav-link active">Inicio</button>
+        <button class="ss-nav-link">Enseñar</button>
+        <button class="ss-nav-link">Mis cursos</button>
+        <button class="ss-nav-link">Historial</button>
+      </div>
 
-.ss-wrap { background: var(--color-background-tertiary); min-height: 100vh; }
+      <div class="ss-nav-right">
+        <div class="ss-icon-btn" title="Mensajes">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="ss-icon-btn" title="Notificaciones">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="ss-avatar">CA</div>
+      </div>
+    </nav>
 
-.ss-nav {
-  background: var(--color-background-primary);
-  border-bottom: 0.5px solid var(--color-border-tertiary);
-  padding: 0 24px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
+    <div class="ss-body">
+      <aside class="ss-sidebar">
+        <div class="ss-profile-card">
+          <div class="ss-profile-top">
+            <div class="ss-profile-avatar">CA</div>
+            <div>
+              <div class="ss-profile-name">Carlos Ávila</div>
+              <div class="ss-profile-career">Ing. en Sistemas</div>
+            </div>
+          </div>
+          <div class="ss-tags">
+            <span class="ss-tag">Programación</span>
+            <span class="ss-tag">Matemáticas</span>
+            <span class="ss-tag">Física</span>
+          </div>
+          <button class="ss-edit-btn">Editar perfil</button>
+        </div>
 
-.ss-logo {
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
+        <div class="ss-sidebar-section">
+          <div class="ss-sidebar-label">Categorías</div>
+          <div class="ss-cat-list">
+            <div class="ss-cat-item active">
+              <div class="ss-cat-dot ss-cat-dot-all"></div>
+              Todas
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-programming"></div>
+              Programación
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-math"></div>
+              Matemáticas
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-language"></div>
+              Idiomas
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-physics"></div>
+              Física
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-chemistry"></div>
+              Química
+            </div>
+            <div class="ss-cat-item">
+              <div class="ss-cat-dot ss-cat-dot-writing"></div>
+              Redacción
+            </div>
+            <div class="ss-cat-item ss-cat-item-add">
+              + Agregar categoría
+            </div>
+          </div>
+        </div>
+      </aside>
 
-.ss-logo-icon {
-  width: 28px; height: 28px;
-  background: #1D9E75;
-  border-radius: 6px;
-  display: flex; align-items: center; justify-content: center;
-}
+      <main class="ss-main">
+        <div class="ss-welcome-banner">
+          <div>
+            <div class="ss-welcome-text">¡Bienvenido de vuelta, Carlos!</div>
+            <div class="ss-welcome-sub">Tienes 3 nuevos matches compatibles con tu horario</div>
+          </div>
+          <div class="ss-welcome-stat">
+            <div class="ss-welcome-stat-num">87%</div>
+            <div class="ss-welcome-stat-label">compatibilidad promedio</div>
+          </div>
+        </div>
 
-.ss-logo-icon svg { width: 16px; height: 16px; }
+        <div class="ss-search-bar">
+          <div class="ss-search-input-wrap">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="ss-search-icon">
+              <circle cx="7" cy="7" r="4.5" stroke="var(--color-text-tertiary)" stroke-width="1.2"/>
+              <path d="M10.5 10.5L13 13" stroke="var(--color-text-tertiary)" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <input class="ss-search-input" placeholder="Buscar habilidades, instructores...">
+          </div>
+          <button class="ss-filter-btn">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 3h12M3 7h8M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Filtros
+          </button>
+        </div>
 
-.ss-nav-links {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-}
-
-.ss-nav-link {
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  padding: 6px 12px;
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-  border: none;
-  background: none;
-  transition: background 0.15s;
-}
-.ss-nav-link:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
-.ss-nav-link.active { background: #E1F5EE; color: #0F6E56; font-weight: 500; }
-
-.ss-nav-right { display: flex; align-items: center; gap: 12px; margin-left: auto; }
-
-.ss-icon-btn {
-  width: 36px; height: 36px;
-  border-radius: var(--border-radius-md);
-  border: 0.5px solid var(--color-border-tertiary);
-  background: var(--color-background-primary);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  position: relative;
-}
-.ss-icon-btn:hover { background: var(--color-background-secondary); }
-
-.notif-dot {
-  width: 7px; height: 7px;
-  background: #E24B4A;
-  border-radius: 50%;
-  position: absolute;
-  top: 6px; right: 6px;
-  border: 1.5px solid var(--color-background-primary);
-}
-
-.ss-avatar {
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  background: #9FE1CB;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px;
-  font-weight: 500;
-  color: #085041;
-  cursor: pointer;
-  border: 2px solid #5DCAA5;
-}
-
-.ss-body { display: grid; grid-template-columns: 240px 1fr; gap: 0; min-height: calc(100vh - 56px); }
-
-.ss-sidebar {
-  background: var(--color-background-primary);
-  border-right: 0.5px solid var(--color-border-tertiary);
-  padding: 20px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.ss-profile-card {
-  background: var(--color-background-secondary);
-  border-radius: var(--border-radius-lg);
-  padding: 16px;
-}
-
-.ss-profile-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-
-.ss-profile-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: #9FE1CB;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 500; color: #085041;
-  flex-shrink: 0;
-}
-
-.ss-profile-name { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
-.ss-profile-career { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
-
-.ss-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
-.ss-tag {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: #E1F5EE;
-  color: #085041;
-  font-weight: 500;
-}
-
-.ss-edit-btn {
-  width: 100%;
-  font-size: 12px;
-  padding: 6px;
-  border-radius: var(--border-radius-md);
-  border: 0.5px solid var(--color-border-secondary);
-  background: var(--color-background-primary);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  text-align: center;
-}
-.ss-edit-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
-
-.ss-sidebar-section { }
-.ss-sidebar-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 8px;
-}
-
-.ss-cat-list { display: flex; flex-direction: column; gap: 2px; }
-.ss-cat-item {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; color: var(--color-text-secondary);
-  padding: 7px 10px;
-  border-radius: var(--border-radius-md);
-  cursor: pointer;
-}
-.ss-cat-item:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
-.ss-cat-item.active { background: #E1F5EE; color: #0F6E56; font-weight: 500; }
-.ss-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-.ss-main { padding: 24px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; }
-
-.ss-welcome-banner {
-  background: #0F6E56;
-  border-radius: var(--border-radius-lg);
-  padding: 20px 24px;
-  display: flex; align-items: center; justify-content: space-between;
-  color: white;
-}
-.ss-welcome-text { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
-.ss-welcome-sub { font-size: 13px; opacity: 0.75; }
-.ss-welcome-stat { text-align: right; }
-.ss-welcome-stat-num { font-size: 28px; font-weight: 500; }
-.ss-welcome-stat-label { font-size: 12px; opacity: 0.7; }
-
-.ss-search-bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.ss-search-input-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-secondary);
-  border-radius: var(--border-radius-lg);
-  padding: 0 14px;
-  height: 40px;
-  gap: 10px;
-}
-.ss-search-input {
-  border: none; background: none; outline: none;
-  font-size: 14px; color: var(--color-text-primary);
-  flex: 1; font-family: var(--font-sans);
-}
-.ss-search-input::placeholder { color: var(--color-text-tertiary); }
-.ss-filter-btn {
-  height: 40px; padding: 0 16px;
-  border-radius: var(--border-radius-lg);
-  border: 0.5px solid var(--color-border-secondary);
-  background: var(--color-background-primary);
-  font-size: 13px; color: var(--color-text-secondary);
-  cursor: pointer; display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-sans);
-}
-.ss-filter-btn:hover { background: var(--color-background-secondary); }
-
-.ss-section-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 14px;
-}
-.ss-section-title { font-size: 16px; font-weight: 500; color: var(--color-text-primary); }
-.ss-section-action { font-size: 13px; color: #1D9E75; cursor: pointer; }
-.ss-section-action:hover { text-decoration: underline; }
-
-.ss-match-priority {
-  font-size: 11px;
-  font-weight: 500;
-  color: #0F6E56;
-  background: #E1F5EE;
-  padding: 2px 8px;
-  border-radius: 20px;
-}
-
-.ss-match-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-
-.ss-course-card {
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-tertiary);
-  border-radius: var(--border-radius-lg);
-  overflow: hidden;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-.ss-course-card:hover { border-color: var(--color-border-secondary); }
-.ss-course-card.featured { border: 1.5px solid #5DCAA5; }
-
-.ss-card-img {
-  height: 88px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 28px;
-  position: relative;
-}
-
-.ss-match-badge {
-  position: absolute; top: 8px; right: 8px;
-  background: #0F6E56;
-  color: white;
-  font-size: 10px; font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 20px;
-}
-
-.ss-card-body { padding: 12px; }
-.ss-card-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
-.ss-card-instructor { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 8px; }
-
-.ss-card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
-.ss-card-stars { font-size: 11px; color: #BA7517; }
-.ss-card-enroll { font-size: 11px; color: var(--color-text-tertiary); }
-.ss-card-schedule { font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 3px; }
-
-.ss-level-pill {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 20px;
-  font-weight: 500;
-}
-.ss-level-basic { background: #E6F1FB; color: #185FA5; }
-.ss-level-inter { background: #FAEEDA; color: #854F0B; }
-.ss-level-adv { background: #FAECE7; color: #993C1D; }
-
-.ss-card-btn {
-  width: 100%; padding: 7px;
-  border-radius: var(--border-radius-md);
-  border: 0.5px solid #5DCAA5;
-  background: #E1F5EE;
-  color: #0F6E56;
-  font-size: 12px; font-weight: 500;
-  cursor: pointer; font-family: var(--font-sans);
-}
-.ss-card-btn:hover { background: #9FE1CB; }
-
-.ss-match-reason {
-  font-size: 10px; color: var(--color-text-tertiary);
-  display: flex; align-items: center; gap: 4px;
-  margin-bottom: 8px;
-}
-
-.ss-divider { height: 0.5px; background: var(--color-border-tertiary); }
-</style>
-
-<div class="ss-wrap">
-
-<nav class="ss-nav">
-  <div class="ss-logo">
-    <div class="ss-logo-icon">
-      <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 8C3 5.24 5.24 3 8 3s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5z" stroke="white" stroke-width="1.5"/>
-        <path d="M6 8l1.5 1.5L10 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    SkillSwap
-  </div>
-
-  <div class="ss-nav-links">
-    <button class="ss-nav-link active">Inicio</button>
-    <button class="ss-nav-link">Enseñar</button>
-    <button class="ss-nav-link">Mis cursos</button>
-    <button class="ss-nav-link">Historial</button>
-  </div>
-
-  <div class="ss-nav-right">
-    <div class="ss-icon-btn" title="Mensajes">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <div class="ss-icon-btn" title="Notificaciones">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linecap="round"/>
-      </svg>
-      <div class="notif-dot"></div>
-    </div>
-    <div class="ss-avatar">CA</div>
-  </div>
-</nav>
-
-<div class="ss-body">
-
-  <aside class="ss-sidebar">
-    <div class="ss-profile-card">
-      <div class="ss-profile-top">
-        <div class="ss-profile-avatar">CA</div>
         <div>
-          <div class="ss-profile-name">Carlos Ávila</div>
-          <div class="ss-profile-career">Ing. en Sistemas</div>
+          <div class="ss-section-header">
+            <div class="ss-section-heading">
+              <span class="ss-section-title">Matches recomendados</span>
+              <span class="ss-match-priority">Intereses en común</span>
+            </div>
+            <span class="ss-section-action">Ver todos</span>
+          </div>
+
+          <div class="ss-match-grid">
+            <div class="ss-course-card featured">
+              <div class="ss-card-img ss-card-img-math">
+                <span>∑</span>
+                <div class="ss-match-badge">98% match</div>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Álgebra Lineal para Ingeniería</div>
+                <div class="ss-card-instructor">Por: María González</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Interés compartido · Horario compatible
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★★ 4.9</span>
+                  <span class="ss-card-enroll">· 24 alumnos</span>
+                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Lun y Mié · 14:00-15:30
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ss-course-card">
+              <div class="ss-card-img ss-card-img-programming">
+                <span class="ss-card-code-icon">&lt;/&gt;</span>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Python para análisis de datos</div>
+                <div class="ss-card-instructor">Por: Andrés Ruiz</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Horario compatible · Nivel similar
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★☆ 4.5</span>
+                  <span class="ss-card-enroll">· 18 alumnos</span>
+                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Mar y Jue · 16:00-17:30
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ss-course-card">
+              <div class="ss-card-img ss-card-img-physics">
+                <span>λ</span>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Física II: Electromagnetismo</div>
+                <div class="ss-card-instructor">Por: Sofía Medina</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Recomendado por usuarios
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★★ 4.8</span>
+                  <span class="ss-card-enroll">· 31 alumnos</span>
+                  <span class="ss-level-pill ss-level-adv">Avanzado</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Vie · 10:00-12:00
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="ss-tags">
-        <span class="ss-tag">Programación</span>
-        <span class="ss-tag">Matemáticas</span>
-        <span class="ss-tag">Física</span>
-      </div>
-      <button class="ss-edit-btn">Editar perfil</button>
+
+        <div class="ss-divider"></div>
+
+        <div>
+          <div class="ss-section-header">
+            <div class="ss-section-heading">
+              <span class="ss-section-title">Ajustado a tu horario</span>
+              <span class="ss-match-priority ss-match-priority-week">Esta semana</span>
+            </div>
+            <span class="ss-section-action">Ver todos</span>
+          </div>
+
+          <div class="ss-match-grid">
+            <div class="ss-course-card">
+              <div class="ss-card-img ss-card-img-language">
+                <span>A</span>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Inglés Conversacional B2</div>
+                <div class="ss-card-instructor">Por: Lucía Torres</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Sin choque de horario
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★☆ 4.3</span>
+                  <span class="ss-card-enroll">· 12 alumnos</span>
+                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Mié · 09:00-10:30
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ss-course-card">
+              <div class="ss-card-img ss-card-img-writing">
+                <span>✎</span>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Redacción de Tesis y Ensayos</div>
+                <div class="ss-card-instructor">Por: Omar Pérez</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Nivel adecuado a ti
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★★ 4.7</span>
+                  <span class="ss-card-enroll">· 9 alumnos</span>
+                  <span class="ss-level-pill ss-level-basic">Básico</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Jue · 11:00-12:30
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="ss-course-card">
+              <div class="ss-card-img ss-card-img-chemistry">
+                <span>⚗</span>
+              </div>
+              <div class="ss-card-body">
+                <div class="ss-card-name">Química Orgánica Básica</div>
+                <div class="ss-card-instructor">Por: Daniela Vega</div>
+                <div class="ss-match-reason">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
+                  Nivel compatible
+                </div>
+                <div class="ss-card-meta">
+                  <span class="ss-card-stars">★★★★☆ 4.1</span>
+                  <span class="ss-card-enroll">· 15 alumnos</span>
+                  <span class="ss-level-pill ss-level-basic">Básico</span>
+                </div>
+                <div class="ss-card-schedule">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
+                  Lun · 08:00-09:30
+                </div>
+                <div class="ss-card-action">
+                  <button class="ss-card-btn">Inscribirse</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
-
-    <div class="ss-sidebar-section">
-      <div class="ss-sidebar-label">Categorías</div>
-      <div class="ss-cat-list">
-        <div class="ss-cat-item active">
-          <div class="ss-cat-dot" style="background:#1D9E75;"></div>
-          Todas
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#378ADD;"></div>
-          Programación
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#BA7517;"></div>
-          Matemáticas
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#D4537E;"></div>
-          Idiomas
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#7F77DD;"></div>
-          Física
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#D85A30;"></div>
-          Química
-        </div>
-        <div class="ss-cat-item">
-          <div class="ss-cat-dot" style="background:#639922;"></div>
-          Redacción
-        </div>
-        <div class="ss-cat-item" style="color:var(--color-text-tertiary); font-size:12px; padding-left:18px;">
-          + Agregar categoría
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <main class="ss-main">
-
-    <div class="ss-welcome-banner">
-      <div>
-        <div class="ss-welcome-text">¡Bienvenido de vuelta, Carlos!</div>
-        <div class="ss-welcome-sub">Tienes 3 nuevos matches compatibles con tu horario</div>
-      </div>
-      <div class="ss-welcome-stat">
-        <div class="ss-welcome-stat-num">87%</div>
-        <div class="ss-welcome-stat-label">compatibilidad promedio</div>
-      </div>
-    </div>
-
-    <div class="ss-search-bar">
-      <div class="ss-search-input-wrap">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;">
-          <circle cx="7" cy="7" r="4.5" stroke="var(--color-text-tertiary)" stroke-width="1.2"/>
-          <path d="M10.5 10.5L13 13" stroke="var(--color-text-tertiary)" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        <input class="ss-search-input" placeholder="Buscar habilidades, instructores..." />
-      </div>
-      <button class="ss-filter-btn">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M1 3h12M3 7h8M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        Filtros
-      </button>
-    </div>
-
-    <div>
-      <div class="ss-section-header">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="ss-section-title">Matches recomendados</span>
-          <span class="ss-match-priority">Intereses en común</span>
-        </div>
-        <span class="ss-section-action">Ver todos</span>
-      </div>
-
-      <div class="ss-match-grid">
-
-        <div class="ss-course-card featured">
-          <div class="ss-card-img" style="background:#E1F5EE;">
-            <span>∑</span>
-            <div class="ss-match-badge">98% match</div>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Álgebra Lineal para Ingeniería</div>
-            <div class="ss-card-instructor">Por: María González</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Interés compartido · Horario compatible
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★★ 4.9</span>
-              <span class="ss-card-enroll">· 24 alumnos</span>
-              <span class="ss-level-pill ss-level-inter">Intermedio</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Lun y Mié · 14:00–15:30
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ss-course-card">
-          <div class="ss-card-img" style="background:#E6F1FB;">
-            <span style="font-family:monospace;font-size:22px;">&lt;/&gt;</span>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Python para análisis de datos</div>
-            <div class="ss-card-instructor">Por: Andrés Ruiz</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Horario compatible · Nivel similar
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★☆ 4.5</span>
-              <span class="ss-card-enroll">· 18 alumnos</span>
-              <span class="ss-level-pill ss-level-inter">Intermedio</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Mar y Jue · 16:00–17:30
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ss-course-card">
-          <div class="ss-card-img" style="background:#FAEEDA;">
-            <span>λ</span>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Física II: Electromagnetismo</div>
-            <div class="ss-card-instructor">Por: Sofía Medina</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Recomendado por usuarios
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★★ 4.8</span>
-              <span class="ss-card-enroll">· 31 alumnos</span>
-              <span class="ss-level-pill ss-level-adv">Avanzado</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Vie · 10:00–12:00
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="ss-divider"></div>
-
-    <div>
-      <div class="ss-section-header">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span class="ss-section-title">Ajustado a tu horario</span>
-          <span class="ss-match-priority" style="background:#E6F1FB;color:#185FA5;">Esta semana</span>
-        </div>
-        <span class="ss-section-action">Ver todos</span>
-      </div>
-
-      <div class="ss-match-grid">
-
-        <div class="ss-course-card">
-          <div class="ss-card-img" style="background:#FBEAF0;">
-            <span>A</span>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Inglés Conversacional B2</div>
-            <div class="ss-card-instructor">Por: Lucía Torres</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Sin choque de horario
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★☆ 4.3</span>
-              <span class="ss-card-enroll">· 12 alumnos</span>
-              <span class="ss-level-pill ss-level-inter">Intermedio</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Mié · 09:00–10:30
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ss-course-card">
-          <div class="ss-card-img" style="background:#EEEDFE;">
-            <span>✎</span>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Redacción de Tesis y Ensayos</div>
-            <div class="ss-card-instructor">Por: Omar Pérez</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Nivel adecuado a ti
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★★ 4.7</span>
-              <span class="ss-card-enroll">· 9 alumnos</span>
-              <span class="ss-level-pill ss-level-basic">Básico</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Jue · 11:00–12:30
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="ss-course-card">
-          <div class="ss-card-img" style="background:#EAF3DE;">
-            <span>⚗</span>
-          </div>
-          <div class="ss-card-body">
-            <div class="ss-card-name">Química Orgánica Básica</div>
-            <div class="ss-card-instructor">Por: Daniela Vega</div>
-            <div class="ss-match-reason">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#1D9E75"/></svg>
-              Nivel compatible
-            </div>
-            <div class="ss-card-meta">
-              <span class="ss-card-stars">★★★★☆ 4.1</span>
-              <span class="ss-card-enroll">· 15 alumnos</span>
-              <span class="ss-level-pill ss-level-basic">Básico</span>
-            </div>
-            <div class="ss-card-schedule">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-              Lun · 08:00–09:30
-            </div>
-            <div style="margin-top:8px;">
-              <button class="ss-card-btn">Inscribirse</button>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </main>
-</div>
-</div>
+  </div>
+</body>
+</html>
