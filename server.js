@@ -1,8 +1,9 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const db = require('./db/database.js');
 
 const app = express();
@@ -50,35 +51,44 @@ function isValidPassword(password) {
     return typeof password === 'string' && password.length >= PASSWORD_MIN_LENGTH;
 }
 
-function createResetTransporter() {
-    const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env;
+function getResetMailConfig() {
+    const { SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, GMAIL_USER } = process.env;
+    const fromEmail = SENDGRID_FROM_EMAIL || GMAIL_USER;
 
-    if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    if (!SENDGRID_API_KEY || !fromEmail) {
         return null;
     }
 
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: GMAIL_USER,
-            pass: GMAIL_APP_PASSWORD
-        }
-    });
+    sgMail.setApiKey(SENDGRID_API_KEY);
+
+    return {
+        fromEmail
+    };
 }
 
 async function sendResetEmail(recipientEmail, resetLink) {
-    const transporter = createResetTransporter();
+    const mailConfig = getResetMailConfig();
 
-    if (!transporter) {
-        console.warn('No se envio el correo de recuperacion porque faltan GMAIL_USER o GMAIL_APP_PASSWORD.');
+    if (!mailConfig) {
+        console.warn('No se envio el correo de recuperacion porque faltan SENDGRID_API_KEY y/o un remitente valido.');
         console.warn(`Enlace de recuperacion generado para ${recipientEmail}: ${resetLink}`);
         return;
     }
 
-    await transporter.sendMail({
-        from: `"SkillSwap" <${process.env.GMAIL_USER}>`,
+    await sgMail.send({
         to: recipientEmail,
+        from: {
+            email: mailConfig.fromEmail,
+            name: 'SkillSwap'
+        },
+        replyTo: mailConfig.fromEmail,
         subject: 'Recupera tu contraseña de SkillSwap',
+        text: [
+            'Recibimos una solicitud para cambiar tu contrasena.',
+            `Abre este enlace para crear una nueva contrasena: ${resetLink}`,
+            `Este enlace expirara en ${RESET_TOKEN_MINUTES} minutos.`,
+            'Si no solicitaste este cambio, puedes ignorar este correo.'
+        ].join('\n\n'),
         html: `
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
                 <h2>Restablecer contraseña</h2>
@@ -92,7 +102,16 @@ async function sendResetEmail(recipientEmail, resetLink) {
                 <p>Este enlace expirará en ${RESET_TOKEN_MINUTES} minutos.</p>
                 <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
             </div>
-        `
+        `,
+        trackingSettings: {
+            clickTracking: {
+                enable: false,
+                enableText: false
+            },
+            openTracking: {
+                enable: false
+            }
+        }
     });
 }
 
