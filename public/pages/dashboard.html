@@ -38,7 +38,7 @@
           </svg>
           <div class="notif-dot"></div>
         </div>
-        <div class="ss-avatar">CA</div>
+        <button class="ss-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">CA</button>
       </div>
     </nav>
 
@@ -105,10 +105,10 @@
         <div class="ss-welcome-banner">
           <div>
             <div class="ss-welcome-text">¡Bienvenido de vuelta, Carlos!</div>
-            <div class="ss-welcome-sub">Tienes 3 nuevos matches compatibles con tu horario</div>
+            <div class="ss-welcome-sub" id="ss-welcome-sub">Tienes 0 nuevos matches compatibles con tu horario</div>
           </div>
           <div class="ss-welcome-stat">
-            <div class="ss-welcome-stat-num">87%</div>
+            <div class="ss-welcome-stat-num" id="ss-welcome-stat-num">0%</div>
             <div class="ss-welcome-stat-label">compatibilidad promedio</div>
           </div>
         </div>
@@ -140,86 +140,7 @@
             <span class="ss-section-action">Ver todos</span>
           </div>
 
-          <div class="ss-match-grid">
-            <div class="ss-course-card featured">
-              <div class="ss-card-img ss-card-img-math">
-                <span>∑</span>
-                <div class="ss-match-badge">98% match</div>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Álgebra Lineal para Ingeniería</div>
-                <div class="ss-card-instructor">Por: María González</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Interés compartido · Horario compatible
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★★ 4.9</span>
-                  <span class="ss-card-enroll">· 24 alumnos</span>
-                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Lun y Mié · 14:00-15:30
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-course-card">
-              <div class="ss-card-img ss-card-img-programming">
-                <span class="ss-card-code-icon">&lt;/&gt;</span>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Python para análisis de datos</div>
-                <div class="ss-card-instructor">Por: Andrés Ruiz</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Horario compatible · Nivel similar
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★☆ 4.5</span>
-                  <span class="ss-card-enroll">· 18 alumnos</span>
-                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Mar y Jue · 16:00-17:30
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-course-card">
-              <div class="ss-card-img ss-card-img-physics">
-                <span>λ</span>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Física II: Electromagnetismo</div>
-                <div class="ss-card-instructor">Por: Sofía Medina</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Recomendado por usuarios
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★★ 4.8</span>
-                  <span class="ss-card-enroll">· 31 alumnos</span>
-                  <span class="ss-level-pill ss-level-adv">Avanzado</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Vie · 10:00-12:00
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div class="ss-match-grid" id="ss-recommended-grid"></div>
         </div>
 
         <div class="ss-divider"></div>
@@ -234,85 +155,7 @@
             <span class="ss-section-action">Ver todos</span>
           </div>
 
-          <div class="ss-match-grid">
-            <div class="ss-course-card">
-              <div class="ss-card-img ss-card-img-language">
-                <span>A</span>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Inglés Conversacional B2</div>
-                <div class="ss-card-instructor">Por: Lucía Torres</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Sin choque de horario
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★☆ 4.3</span>
-                  <span class="ss-card-enroll">· 12 alumnos</span>
-                  <span class="ss-level-pill ss-level-inter">Intermedio</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Mié · 09:00-10:30
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-course-card">
-              <div class="ss-card-img ss-card-img-writing">
-                <span>✎</span>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Redacción de Tesis y Ensayos</div>
-                <div class="ss-card-instructor">Por: Omar Pérez</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Nivel adecuado a ti
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★★ 4.7</span>
-                  <span class="ss-card-enroll">· 9 alumnos</span>
-                  <span class="ss-level-pill ss-level-basic">Básico</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Jue · 11:00-12:30
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-course-card">
-              <div class="ss-card-img ss-card-img-chemistry">
-                <span>⚗</span>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-card-name">Química Orgánica Básica</div>
-                <div class="ss-card-instructor">Por: Daniela Vega</div>
-                <div class="ss-match-reason">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="#7C3AED"/></svg>
-                  Nivel compatible
-                </div>
-                <div class="ss-card-meta">
-                  <span class="ss-card-stars">★★★★☆ 4.1</span>
-                  <span class="ss-card-enroll">· 15 alumnos</span>
-                  <span class="ss-level-pill ss-level-basic">Básico</span>
-                </div>
-                <div class="ss-card-schedule">
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1"/><path d="M5 3v2l1.5 1.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>
-                  Lun · 08:00-09:30
-                </div>
-                <div class="ss-card-action">
-                  <button class="ss-card-btn">Inscribirse</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div class="ss-match-grid" id="ss-schedule-grid"></div>
         </div>
 
         <div class="ss-divider"></div>
@@ -325,126 +168,7 @@
             </div>
           </div>
 
-          <div class="ss-match-grid" id="ss-user-grid">
-
-            <div class="ss-user-card">
-              <div class="ss-user-card-header ss-user-card-header-blue">
-                <div class="ss-user-avatar ss-user-avatar-blue">MG</div>
-                <div class="ss-user-card-header-info">
-                  <div class="ss-user-card-header-name">María González</div>
-                  <div class="ss-user-card-header-career">Ing. Matemáticas</div>
-                </div>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-user-skills">
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Enseña</span>
-                    <span class="ss-user-skill-pill ss-pill-teaches">Álgebra Lineal</span>
-                  </div>
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Aprende</span>
-                    <span class="ss-user-skill-pill ss-pill-learns">Programación</span>
-                  </div>
-                </div>
-                <div class="ss-user-compat">
-                  <span class="ss-user-compat-label">Compatibilidad</span>
-                  <div class="ss-user-compat-bar">
-                    <div class="ss-user-compat-fill ss-compat-blue" style="width:98%"></div>
-                  </div>
-                  <span class="ss-user-compat-pct">98%</span>
-                </div>
-                <div class="ss-user-tags">
-                  <span class="ss-user-tag">Matemáticas</span>
-                  <span class="ss-user-tag">Lun–Mié</span>
-                </div>
-                <div class="ss-card-action">
-                  <div class="ss-user-btn-row">
-                    <button class="ss-card-btn">Enviar solicitud</button>
-                    <button class="ss-user-btn-reject" onclick="rechazarUsuario(0)">✕</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-user-card">
-              <div class="ss-user-card-header ss-user-card-header-purple">
-                <div class="ss-user-avatar ss-user-avatar-purple">AR</div>
-                <div class="ss-user-card-header-info">
-                  <div class="ss-user-card-header-name">Andrés Ruiz</div>
-                  <div class="ss-user-card-header-career">Ing. en Sistemas</div>
-                </div>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-user-skills">
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Enseña</span>
-                    <span class="ss-user-skill-pill ss-pill-teaches">Python / Data</span>
-                  </div>
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Aprende</span>
-                    <span class="ss-user-skill-pill ss-pill-learns">Física</span>
-                  </div>
-                </div>
-                <div class="ss-user-compat">
-                  <span class="ss-user-compat-label">Compatibilidad</span>
-                  <div class="ss-user-compat-bar">
-                    <div class="ss-user-compat-fill ss-compat-purple" style="width:91%"></div>
-                  </div>
-                  <span class="ss-user-compat-pct">91%</span>
-                </div>
-                <div class="ss-user-tags">
-                  <span class="ss-user-tag">Programación</span>
-                  <span class="ss-user-tag">Mar–Jue</span>
-                </div>
-                <div class="ss-card-action">
-                  <div class="ss-user-btn-row">
-                    <button class="ss-card-btn">Enviar solicitud</button>
-                    <button class="ss-user-btn-reject" onclick="rechazarUsuario(1)">✕</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="ss-user-card">
-              <div class="ss-user-card-header ss-user-card-header-teal">
-                <div class="ss-user-avatar ss-user-avatar-teal">SM</div>
-                <div class="ss-user-card-header-info">
-                  <div class="ss-user-card-header-name">Sofía Medina</div>
-                  <div class="ss-user-card-header-career">Física experimental</div>
-                </div>
-              </div>
-              <div class="ss-card-body">
-                <div class="ss-user-skills">
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Enseña</span>
-                    <span class="ss-user-skill-pill ss-pill-teaches">Electromagnetismo</span>
-                  </div>
-                  <div class="ss-user-skill-row">
-                    <span class="ss-user-skill-label">Aprende</span>
-                    <span class="ss-user-skill-pill ss-pill-learns">Redacción</span>
-                  </div>
-                </div>
-                <div class="ss-user-compat">
-                  <span class="ss-user-compat-label">Compatibilidad</span>
-                  <div class="ss-user-compat-bar">
-                    <div class="ss-user-compat-fill ss-compat-teal" style="width:85%"></div>
-                  </div>
-                  <span class="ss-user-compat-pct">85%</span>
-                </div>
-                <div class="ss-user-tags">
-                  <span class="ss-user-tag">Física</span>
-                  <span class="ss-user-tag">Viernes</span>
-                </div>
-                <div class="ss-card-action">
-                  <div class="ss-user-btn-row">
-                    <button class="ss-card-btn">Enviar solicitud</button>
-                    <button class="ss-user-btn-reject" onclick="rechazarUsuario(2)">✕</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
+          <div class="ss-match-grid" id="ss-user-grid"></div>
         </div>
 
       </main>
@@ -456,135 +180,7 @@
   </div>
   <!-- fin ss-wrap -->
 
-  <script>
-    const usuarios = [
-      {
-        iniciales: "MG", nombre: "María González", carrera: "Ing. Matemáticas",
-        colorClass: "blue", ensena: "Álgebra Lineal", aprende: "Programación",
-        compat: 98, compatClass: "blue", tags: ["Matemáticas", "Lun–Mié"]
-      },
-      {
-        iniciales: "AR", nombre: "Andrés Ruiz", carrera: "Ing. en Sistemas",
-        colorClass: "purple", ensena: "Python / Data", aprende: "Física",
-        compat: 91, compatClass: "purple", tags: ["Programación", "Mar–Jue"]
-      },
-      {
-        iniciales: "SM", nombre: "Sofía Medina", carrera: "Física experimental",
-        colorClass: "teal", ensena: "Electromagnetismo", aprende: "Redacción",
-        compat: 85, compatClass: "teal", tags: ["Física", "Viernes"]
-      },
-      {
-        iniciales: "LT", nombre: "Lucía Torres", carrera: "Letras Hispánicas",
-        colorClass: "blue", ensena: "Redacción", aprende: "Matemáticas",
-        compat: 79, compatClass: "blue", tags: ["Escritura", "Lun–Vie"]
-      },
-      {
-        iniciales: "OP", nombre: "Omar Pérez", carrera: "Ing. Industrial",
-        colorClass: "purple", ensena: "Estadística", aprende: "Programación",
-        compat: 76, compatClass: "purple", tags: ["Estadística", "Mar–Jue"]
-      },
-      {
-        iniciales: "DV", nombre: "Daniela Vega", carrera: "Química",
-        colorClass: "teal", ensena: "Química Orgánica", aprende: "Física",
-        compat: 72, compatClass: "teal", tags: ["Química", "Miércoles"]
-      },
-      {
-        iniciales: "JR", nombre: "Jorge Ramírez", carrera: "Ing. en Computación",
-        colorClass: "blue", ensena: "Algoritmos", aprende: "Inglés",
-        compat: 88, compatClass: "blue", tags: ["Programación", "Vie"]
-      },
-      {
-        iniciales: "PG", nombre: "Paola García", carrera: "Matemáticas Aplicadas",
-        colorClass: "purple", ensena: "Cálculo", aprende: "Estadística",
-        compat: 83, compatClass: "purple", tags: ["Matemáticas", "Lun–Mié"]
-      }
-    ];
-
-    let nextIndex = 3;
-
-    function crearCard(u, slotIndex) {
-      return `
-        <div class="ss-user-card-header ss-user-card-header-${u.colorClass}">
-          <div class="ss-user-avatar ss-user-avatar-${u.colorClass}">${u.iniciales}</div>
-          <div class="ss-user-card-header-info">
-            <div class="ss-user-card-header-name">${u.nombre}</div>
-            <div class="ss-user-card-header-career">${u.carrera}</div>
-          </div>
-        </div>
-        <div class="ss-card-body">
-          <div class="ss-user-skills">
-            <div class="ss-user-skill-row">
-              <span class="ss-user-skill-label">Enseña</span>
-              <span class="ss-user-skill-pill ss-pill-teaches">${u.ensena}</span>
-            </div>
-            <div class="ss-user-skill-row">
-              <span class="ss-user-skill-label">Aprende</span>
-              <span class="ss-user-skill-pill ss-pill-learns">${u.aprende}</span>
-            </div>
-          </div>
-          <div class="ss-user-compat">
-            <span class="ss-user-compat-label">Compatibilidad</span>
-            <div class="ss-user-compat-bar">
-              <div class="ss-user-compat-fill ss-compat-${u.compatClass}" style="width:${u.compat}%"></div>
-            </div>
-            <span class="ss-user-compat-pct">${u.compat}%</span>
-          </div>
-          <div class="ss-user-tags">
-            ${u.tags.map(t => `<span class="ss-user-tag">${t}</span>`).join("")}
-          </div>
-          <div class="ss-card-action">
-            <div class="ss-user-btn-row">
-              <button class="ss-card-btn">Enviar solicitud</button>
-              <button class="ss-user-btn-reject" onclick="rechazarUsuario(${slotIndex})">✕</button>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function rechazarUsuario(slotIndex) {
-      const grid = document.getElementById("ss-user-grid");
-      const cards = grid.querySelectorAll(".ss-user-card");
-      const card = cards[slotIndex];
-
-      if (nextIndex >= usuarios.length) {
-        card.style.transition = "opacity 0.3s, transform 0.3s";
-        card.style.opacity = "0";
-        card.style.transform = "scale(0.95)";
-        setTimeout(() => {
-          card.innerHTML = `
-            <div class="ss-card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0.5rem;text-align:center;padding:2rem 1rem;min-height:200px;">
-              <span style="font-size:2rem;">🎉</span>
-              <span style="font-size:0.9rem;color:var(--color-text-secondary);">Sin más sugerencias por ahora</span>
-            </div>
-          `;
-          card.style.opacity = "1";
-          card.style.transform = "scale(1)";
-        }, 300);
-        return;
-      }
-
-      const nuevoUsuario = usuarios[nextIndex];
-      nextIndex++;
-
-      card.style.transition = "opacity 0.25s, transform 0.25s";
-      card.style.opacity = "0";
-      card.style.transform = "translateY(-8px)";
-
-      setTimeout(() => {
-        card.innerHTML = crearCard(nuevoUsuario, slotIndex);
-        card.style.transform = "translateY(8px)";
-        card.style.opacity = "0";
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            card.style.transition = "opacity 0.25s, transform 0.25s";
-            card.style.opacity = "1";
-            card.style.transform = "translateY(0)";
-          });
-        });
-      }, 250);
-    }
-  </script>
+  <script src="/js/dashboard.js"></script>
 
 </body>
 </html>

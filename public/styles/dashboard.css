@@ -734,6 +734,28 @@ body {
   color: #EF4444;
   border-color: #FECACA;
 }
+
+.ss-empty-state {
+  grid-column: 1 / -1;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.ss-empty-state-title {
+  color: var(--color-text-primary);
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.ss-empty-state-text {
+  font-size: 0.92rem;
+}
+
 /* =========================================
    RESPONSIVE DESIGN (MEDIA QUERIES)
    ========================================= */

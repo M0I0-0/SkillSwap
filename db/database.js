@@ -28,6 +28,36 @@ db.run(`CREATE TABLE IF NOT EXISTS usuarios (
     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
+// Tablas para poblar el dashboard con datos reales.
+db.run(`CREATE TABLE IF NOT EXISTS dashboard_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    section TEXT NOT NULL CHECK(section IN ('recommended', 'schedule')),
+    title TEXT NOT NULL,
+    instructor TEXT NOT NULL,
+    reason TEXT,
+    rating REAL DEFAULT 0,
+    students_count INTEGER DEFAULT 0,
+    level TEXT DEFAULT 'Basico',
+    schedule TEXT,
+    match_percent INTEGER DEFAULT 0,
+    category TEXT DEFAULT 'general',
+    icon TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS dashboard_user_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    career TEXT,
+    teaches TEXT,
+    learns TEXT,
+    compatibility INTEGER DEFAULT 0,
+    tag_primary TEXT,
+    tag_secondary TEXT,
+    color TEXT DEFAULT 'blue',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
 function ensureColumn(tableName, columnName, definition) {
   db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
     if (err) {

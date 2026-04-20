@@ -43,6 +43,19 @@ function getQuery(sql, params = []) {
     });
 }
 
+function allQuery(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve(rows);
+        });
+    });
+}
+
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -309,6 +322,55 @@ app.post('/api/reset-password', async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar contraseña:', error);
         return res.status(500).json({ success: false, message: 'No fue posible actualizar la contraseña.' });
+    }
+});
+
+app.get('/api/dashboard', async (req, res) => {
+    try {
+        const [recommendedMatches, scheduleMatches, userMatches] = await Promise.all([
+            allQuery(
+                `SELECT id, title, instructor, reason, rating, students_count, level, schedule, match_percent, category, icon
+                 FROM dashboard_matches
+                 WHERE section = 'recommended'
+                 ORDER BY match_percent DESC, id DESC`
+            ),
+            allQuery(
+                `SELECT id, title, instructor, reason, rating, students_count, level, schedule, match_percent, category, icon
+                 FROM dashboard_matches
+                 WHERE section = 'schedule'
+                 ORDER BY match_percent DESC, id DESC`
+            ),
+            allQuery(
+                `SELECT id, name, career, teaches, learns, compatibility, tag_primary, tag_secondary, color
+                 FROM dashboard_user_matches
+                 ORDER BY compatibility DESC, id DESC`
+            )
+        ]);
+
+        const allCompatibilities = [
+            ...recommendedMatches.map((item) => Number(item.match_percent) || 0),
+            ...scheduleMatches.map((item) => Number(item.match_percent) || 0),
+            ...userMatches.map((item) => Number(item.compatibility) || 0)
+        ].filter((value) => value > 0);
+
+        const averageCompatibility = allCompatibilities.length
+            ? Math.round(allCompatibilities.reduce((sum, value) => sum + value, 0) / allCompatibilities.length)
+            : 0;
+
+        return res.json({
+            summary: {
+                newMatches: recommendedMatches.length,
+                averageCompatibility
+            },
+            recommendedMatches,
+            scheduleMatches,
+            userMatches
+        });
+    } catch (error) {
+        console.error('Error cargando dashboard:', error);
+        return res.status(500).json({
+            message: 'No fue posible cargar la informacion del dashboard.'
+        });
     }
 });
 
