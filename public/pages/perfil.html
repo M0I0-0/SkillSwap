@@ -261,7 +261,7 @@ input[type="checkbox"] {
         Seguridad
       </div>
       <div class="p-side-divider"></div>
-      <a href="/" style="text-decoration: none;" onclick="localStorage.removeItem('skillswapCurrentUserEmail')">
+      <a href="/" style="text-decoration: none;" onclick="if (window.clearCurrentUserEmail) { clearCurrentUserEmail(); } else { localStorage.removeItem('skillswapCurrentUserEmail'); }">
   <div class="p-side-item" style="display: flex; align-items: center; gap: 0.75rem; color: #DC2626; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#FEE2E2'" onmouseout="this.style.backgroundColor='transparent'">
     <svg style="width: 20px; height: 20px;" viewBox="0 0 16 16" fill="none">
       <path d="M10 3h3v10h-3M6 11l-4-3 4-3M2 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -491,6 +491,7 @@ input[type="checkbox"] {
   </div>
 </div>
 
+<script src="/js/session.js"></script>
 <script src="/js/perfil.js"></script>
 </body>
 </html>

@@ -1,15 +1,8 @@
 const days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 const times = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00"];
 const selected = new Set();
-const currentUserEmail = localStorage.getItem("skillswapCurrentUserEmail");
-
 function initialsFromName(name) {
-  return String(name || "")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "SS";
+  return getInitials(name);
 }
 
 function normalizeInterests(interests) {
@@ -166,20 +159,20 @@ function setLevel(el, type) {
 }
 
 async function loadProfile() {
+  const currentUserEmail = getCurrentUserEmail();
+
   if (!currentUserEmail) {
     showMessage("No hay una sesión activa. Inicia sesión para cargar tu perfil.", true);
     return;
   }
 
   try {
-    const response = await fetch(`/api/users/me?email=${encodeURIComponent(currentUserEmail)}`);
-    const data = await response.json();
+    const user = await fetchCurrentUserProfile();
 
-    if (!response.ok) {
-      throw new Error(data.message || "No se pudo cargar el perfil");
+    if (!user) {
+      redirectToLogin();
+      return;
     }
-
-    const user = data.user;
     const initials = initialsFromName(user.fullName);
 
     document.getElementById("p-nav-avatar").textContent = initials;
@@ -198,10 +191,13 @@ async function loadProfile() {
   } catch (error) {
     console.error(error);
     showMessage(error.message || "No se pudo cargar tu perfil.", true);
+    redirectToLogin();
   }
 }
 
 async function saveProfile() {
+  const currentUserEmail = getCurrentUserEmail();
+
   if (!currentUserEmail) {
     showMessage("No hay una sesión activa.", true);
     return;

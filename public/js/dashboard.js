@@ -14,8 +14,6 @@ const userColorConfig = {
   teal: "teal"
 };
 
-const currentUserEmail = localStorage.getItem("skillswapCurrentUserEmail");
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -45,15 +43,6 @@ function ratingStars(rating) {
   return `${"★".repeat(filled)}${"☆".repeat(5 - filled)} ${safeRating.toFixed(1)}`;
 }
 
-function initialsFromName(name) {
-  return String(name || "")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "SS";
-}
-
 function splitInterests(interests) {
   return String(interests || "")
     .split(",")
@@ -62,19 +51,14 @@ function splitInterests(interests) {
 }
 
 async function loadCurrentUser() {
-  if (!currentUserEmail) {
-    return;
-  }
-
   try {
-    const response = await fetch(`/api/users/me?email=${encodeURIComponent(currentUserEmail)}`);
-    if (!response.ok) {
-      throw new Error("No se pudo cargar el usuario actual");
+    const user = await fetchCurrentUserProfile();
+    if (!user) {
+      redirectToLogin();
+      return;
     }
 
-    const data = await response.json();
-    const user = data.user;
-    const initials = initialsFromName(user.fullName);
+    const initials = getInitials(user.fullName);
     const interests = splitInterests(user.interests);
 
     const navAvatar = document.getElementById("ss-nav-avatar");
@@ -97,6 +81,7 @@ async function loadCurrentUser() {
     }
   } catch (error) {
     console.error(error);
+    redirectToLogin();
   }
 }
 
