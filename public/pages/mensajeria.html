@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillSwap - Mensajeria</title>
+  <link rel="stylesheet" href="/styles/mensajeria.css">
+</head>
+<body>
+  <div class="msg-page">
+    <nav class="ss-nav">
+      <div class="ss-logo">
+        <div class="ss-logo-icon">
+          <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 8C3 5.24 5.24 3 8 3s5 2.24 5 5-2.24 5-5 5-5-2.24-5-5z" stroke="white" stroke-width="1.5"/>
+            <path d="M6 8l1.5 1.5L10 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        SkillSwap
+      </div>
+
+      <div class="ss-nav-links">
+        <button class="ss-nav-link active" type="button" onclick="window.location.href='/dashboard'">Inicio</button>
+        <button class="ss-nav-link" type="button">Enseñar</button>
+        <button class="ss-nav-link" type="button">Mis cursos</button>
+        <button class="ss-nav-link" type="button">Historial</button>
+      </div>
+
+      <div class="ss-nav-right">
+        <div class="ss-icon-btn" title="Mensajes" onclick="window.location.href='/mensajeria'">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="ss-icon-btn" title="Notificaciones">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <div class="notif-dot"></div>
+        </div>
+        <div class="ss-avatar">CA</div>
+      </div>
+    </nav>
+
+    <main class="msg-shell">
+      <section class="msg-panel">
+        <aside class="msg-sidebar">
+          <div class="msg-sidebar-header">
+            <h1>Chats</h1>
+          </div>
+
+          <div class="msg-chat-list">
+            <article class="msg-chat-item active">
+              <div class="msg-avatar msg-avatar-maria">MG</div>
+              <div class="msg-chat-copy">
+                <div class="msg-chat-name">Maria Gonzalez</div>
+              </div>
+              <span class="msg-chat-badge">1</span>
+            </article>
+
+            <article class="msg-chat-item">
+              <div class="msg-avatar msg-avatar-andres">AR</div>
+              <div class="msg-chat-copy">
+                <div class="msg-chat-name">Andres Ruiz</div>
+              </div>
+            </article>
+
+            <article class="msg-chat-item">
+              <div class="msg-avatar msg-avatar-ana">AL</div>
+              <div class="msg-chat-copy">
+                <div class="msg-chat-name">Ana Lopez</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="msg-sidebar-section">
+            <p class="msg-sidebar-label">Recientes</p>
+
+            <article class="msg-recent-item">
+              <div class="msg-avatar msg-avatar-maria">MG</div>
+              <div>
+                <div class="msg-recent-name">Maria Gonzalez</div>
+                <div class="msg-recent-status">En linea</div>
+              </div>
+            </article>
+
+            <article class="msg-recent-item">
+              <div class="msg-avatar msg-avatar-andres">AR</div>
+              <div>
+                <div class="msg-recent-name">Andres Ruiz</div>
+              </div>
+            </article>
+          </div>
+
+          <button class="msg-new-btn" type="button">+ Nuevo mensaje</button>
+        </aside>
+
+        <section class="msg-conversation">
+          <header class="msg-conversation-header">
+            <div class="msg-avatar msg-avatar-maria msg-avatar-lg">MG</div>
+            <div>
+              <div class="msg-conversation-name">Maria Gonzalez <span> - En linea</span></div>
+              <div class="msg-online-indicator">
+                <span class="msg-online-dot"></span>
+                En linea
+              </div>
+            </div>
+          </header>
+
+          <div class="msg-messages">
+            <div class="msg-message-group received">
+              <div class="msg-bubble">Hola, puedes ayudarme con algebra?</div>
+              <div class="msg-time">10:25 AM</div>
+            </div>
+
+            <div class="msg-message-group sent">
+              <div class="msg-bubble">Claro, dime en que necesitas ayuda.</div>
+              <div class="msg-time">10:27 AM</div>
+            </div>
+          </div>
+
+          <form class="msg-compose">
+            <input type="text" placeholder="Escribe un mensaje..." aria-label="Escribe un mensaje">
+            <button type="submit">Enviar</button>
+          </form>
+        </section>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
