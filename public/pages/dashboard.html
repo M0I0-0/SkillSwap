@@ -38,7 +38,7 @@
           </svg>
           <div class="notif-dot"></div>
         </div>
-        <button class="ss-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">CA</button>
+        <button class="ss-avatar" id="ss-nav-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">SS</button>
       </div>
     </nav>
 
@@ -46,17 +46,13 @@
       <aside class="ss-sidebar">
         <div class="ss-profile-card">
           <div class="ss-profile-top">
-            <div class="ss-profile-avatar">CA</div>
+            <div class="ss-profile-avatar" id="ss-profile-avatar">SS</div>
             <div>
-              <div class="ss-profile-name">Carlos Ávila</div>
-              <div class="ss-profile-career">Ing. en Sistemas</div>
+              <div class="ss-profile-name" id="ss-profile-name">Usuario SkillSwap</div>
+              <div class="ss-profile-career" id="ss-profile-career">Carrera no disponible</div>
             </div>
           </div>
-          <div class="ss-tags">
-            <span class="ss-tag">Programación</span>
-            <span class="ss-tag">Matemáticas</span>
-            <span class="ss-tag">Física</span>
-          </div>
+          <div class="ss-tags" id="ss-profile-tags"></div>
           <button class="ss-edit-btn" onclick="window.location.href='/perfil'">Editar perfil</button>
         </div>
 
@@ -104,7 +100,7 @@
         <!-- Banner de bienvenida -->
         <div class="ss-welcome-banner">
           <div>
-            <div class="ss-welcome-text">¡Bienvenido de vuelta, Carlos!</div>
+            <div class="ss-welcome-text" id="ss-welcome-text">¡Bienvenido de vuelta!</div>
             <div class="ss-welcome-sub" id="ss-welcome-sub">Tienes 0 nuevos matches compatibles con tu horario</div>
           </div>
           <div class="ss-welcome-stat">

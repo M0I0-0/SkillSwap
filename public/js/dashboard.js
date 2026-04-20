@@ -14,6 +14,8 @@ const userColorConfig = {
   teal: "teal"
 };
 
+const currentUserEmail = localStorage.getItem("skillswapCurrentUserEmail");
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -50,6 +52,52 @@ function initialsFromName(name) {
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
     .join("") || "SS";
+}
+
+function splitInterests(interests) {
+  return String(interests || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function loadCurrentUser() {
+  if (!currentUserEmail) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/users/me?email=${encodeURIComponent(currentUserEmail)}`);
+    if (!response.ok) {
+      throw new Error("No se pudo cargar el usuario actual");
+    }
+
+    const data = await response.json();
+    const user = data.user;
+    const initials = initialsFromName(user.fullName);
+    const interests = splitInterests(user.interests);
+
+    const navAvatar = document.getElementById("ss-nav-avatar");
+    const profileAvatar = document.getElementById("ss-profile-avatar");
+    const profileName = document.getElementById("ss-profile-name");
+    const profileCareer = document.getElementById("ss-profile-career");
+    const profileTags = document.getElementById("ss-profile-tags");
+    const welcomeText = document.getElementById("ss-welcome-text");
+
+    if (navAvatar) navAvatar.textContent = initials;
+    if (profileAvatar) profileAvatar.textContent = initials;
+    if (profileName) profileName.textContent = user.fullName || "Usuario SkillSwap";
+    if (profileCareer) profileCareer.textContent = user.career || "Carrera no disponible";
+    if (welcomeText) welcomeText.textContent = `¡Bienvenido de vuelta, ${user.nombres || user.fullName || "estudiante"}!`;
+
+    if (profileTags) {
+      profileTags.innerHTML = interests.length
+        ? interests.map((interest) => `<span class="ss-tag">${escapeHtml(interest)}</span>`).join("")
+        : `<span class="ss-tag">Sin intereses registrados</span>`;
+    }
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function renderEmptyState(message) {
@@ -214,3 +262,4 @@ async function loadDashboard() {
 }
 
 document.addEventListener("DOMContentLoaded", loadDashboard);
+document.addEventListener("DOMContentLoaded", loadCurrentUser);

@@ -90,3 +90,5 @@ function ensureColumn(tableName, columnName, definition) {
 // Migración automática para recuperación de contraseña.
 ensureColumn("usuarios", "reset_token", "TEXT");
 ensureColumn("usuarios", "reset_exp", "INTEGER");
+ensureColumn("usuarios", "telefono", "TEXT");
+ensureColumn("usuarios", "semestre", "INTEGER");

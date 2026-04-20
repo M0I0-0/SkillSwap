@@ -56,6 +56,77 @@ function allQuery(sql, params = []) {
     });
 }
 
+function buildFullName(user) {
+    return [
+        user.nombres,
+        user.apellido_paterno,
+        user.apellido_materno
+    ].filter(Boolean).join(' ').trim();
+}
+
+function splitFullName(fullName = '') {
+    const parts = String(fullName)
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 0) {
+        return {
+            nombres: '',
+            apellidoPaterno: '',
+            apellidoMaterno: ''
+        };
+    }
+
+    if (parts.length === 1) {
+        return {
+            nombres: parts[0],
+            apellidoPaterno: '',
+            apellidoMaterno: ''
+        };
+    }
+
+    if (parts.length === 2) {
+        return {
+            nombres: parts[0],
+            apellidoPaterno: parts[1],
+            apellidoMaterno: ''
+        };
+    }
+
+    return {
+        nombres: parts.slice(0, -2).join(' '),
+        apellidoPaterno: parts[parts.length - 2],
+        apellidoMaterno: parts[parts.length - 1]
+    };
+}
+
+async function getUserByEmail(email) {
+    return getQuery(
+        `SELECT id, nombres, apellido_paterno, apellido_materno, matricula, carrera, correo, intereses, disponibilidad, telefono, semestre
+         FROM usuarios
+         WHERE lower(correo) = lower(?)`,
+        [email]
+    );
+}
+
+function formatUserProfile(user) {
+    return {
+        id: user.id,
+        fullName: buildFullName(user),
+        nombres: user.nombres || '',
+        apellidoPaterno: user.apellido_paterno || '',
+        apellidoMaterno: user.apellido_materno || '',
+        matricula: user.matricula || '',
+        career: user.carrera || '',
+        email: user.correo || '',
+        interests: user.intereses || '',
+        availability: user.disponibilidad || '',
+        phone: user.telefono || '',
+        semester: user.semestre || ''
+    };
+}
+
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -371,6 +442,94 @@ app.get('/api/dashboard', async (req, res) => {
         return res.status(500).json({
             message: 'No fue posible cargar la informacion del dashboard.'
         });
+    }
+});
+
+app.get('/api/users/me', async (req, res) => {
+    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
+
+    if (!email) {
+        return res.status(400).json({ message: 'El correo es obligatorio.' });
+    }
+
+    try {
+        const user = await getUserByEmail(email);
+
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+
+        return res.json({ user: formatUserProfile(user) });
+    } catch (error) {
+        console.error('Error consultando perfil:', error);
+        return res.status(500).json({ message: 'No fue posible cargar el perfil.' });
+    }
+});
+
+app.put('/api/users/me', async (req, res) => {
+    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim() : '';
+    const career = typeof req.body.career === 'string' ? req.body.career.trim() : '';
+    const interests = typeof req.body.interests === 'string' ? req.body.interests.trim() : '';
+    const availability = typeof req.body.availability === 'string' ? req.body.availability.trim() : '';
+    const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+    const semesterValue = typeof req.body.semester === 'string' || typeof req.body.semester === 'number'
+        ? String(req.body.semester).trim()
+        : '';
+
+    if (!email) {
+        return res.status(400).json({ message: 'El correo es obligatorio.' });
+    }
+
+    if (!fullName) {
+        return res.status(400).json({ message: 'El nombre completo es obligatorio.' });
+    }
+
+    const { nombres, apellidoPaterno, apellidoMaterno } = splitFullName(fullName);
+    const semester = semesterValue === '' ? null : Number(semesterValue);
+
+    if (!nombres || !apellidoPaterno) {
+        return res.status(400).json({
+            message: 'Ingresa al menos nombre y apellido paterno.'
+        });
+    }
+
+    if (semesterValue !== '' && Number.isNaN(semester)) {
+        return res.status(400).json({ message: 'El semestre debe ser numerico.' });
+    }
+
+    try {
+        const existingUser = await getUserByEmail(email);
+
+        if (!existingUser) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+
+        await runQuery(
+            `UPDATE usuarios
+             SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, carrera = ?, intereses = ?, disponibilidad = ?, telefono = ?, semestre = ?
+             WHERE id = ?`,
+            [
+                nombres,
+                apellidoPaterno,
+                apellidoMaterno,
+                career,
+                interests,
+                availability,
+                phone,
+                semester,
+                existingUser.id
+            ]
+        );
+
+        const updatedUser = await getUserByEmail(email);
+        return res.json({
+            message: 'Perfil actualizado correctamente.',
+            user: formatUserProfile(updatedUser)
+        });
+    } catch (error) {
+        console.error('Error actualizando perfil:', error);
+        return res.status(500).json({ message: 'No fue posible actualizar el perfil.' });
     }
 });
 

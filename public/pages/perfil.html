@@ -228,7 +228,7 @@ input[type="checkbox"] {
       <button class="p-nav-link">Mis cursos</button>
       <button class="p-nav-link">Historial</button>
     </div>
-    <div class="p-avatar-sm">CA</div>
+    <div class="p-avatar-sm" id="p-nav-avatar">SS</div>
   </nav>
 
   <div class="p-body">
@@ -261,7 +261,7 @@ input[type="checkbox"] {
         Seguridad
       </div>
       <div class="p-side-divider"></div>
-      <a href="/" style="text-decoration: none;">
+      <a href="/" style="text-decoration: none;" onclick="localStorage.removeItem('skillswapCurrentUserEmail')">
   <div class="p-side-item" style="display: flex; align-items: center; gap: 0.75rem; color: #DC2626; padding: 0.75rem 1rem; border-radius: 8px; font-weight: 500; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#FEE2E2'" onmouseout="this.style.backgroundColor='transparent'">
     <svg style="width: 20px; height: 20px;" viewBox="0 0 16 16" fill="none">
       <path d="M10 3h3v10h-3M6 11l-4-3 4-3M2 8h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -278,14 +278,14 @@ input[type="checkbox"] {
           <div class="p-section">
             <div class="p-section-head">
               <span class="p-section-title">Información personal</span>
-              <button class="p-save-btn">Guardar cambios</button>
+              <button class="p-save-btn" id="p-save-personal-btn" type="button">Guardar cambios</button>
             </div>
             <div class="p-section-body">
               <div class="p-profile-hero">
-                <div class="p-avatar-lg">CA</div>
+                <div class="p-avatar-lg" id="p-avatar-lg">SS</div>
                 <div class="p-avatar-info">
-                  <div class="p-avatar-name">Carlos Ávila</div>
-                  <div class="p-avatar-meta">carlos.avila@universidad.edu.mx</div>
+                  <div class="p-avatar-name" id="p-avatar-name">Usuario SkillSwap</div>
+                  <div class="p-avatar-meta" id="p-avatar-email">correo@skillswap.mx</div>
                   <div style="margin-top:4px;display:flex;align-items:center;">
                     <span class="p-avatar-badge">
                       <svg width="12" height="12" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="var(--purple)"/><path d="M3 5l1.5 1.5L7 3.5" stroke="white" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -296,14 +296,17 @@ input[type="checkbox"] {
                 <button class="p-change-photo">Cambiar foto</button>
               </div>
 
+              <div class="p-hint" id="p-profile-message" style="display:none;margin-bottom:16px;"></div>
+
               <div class="p-form-grid">
                 <div class="p-field">
                   <label class="p-label">Nombre completo</label>
-                  <input class="p-input" value="Carlos Ávila Mendoza" />
+                  <input class="p-input" id="p-full-name" />
                 </div>
                 <div class="p-field">
                   <label class="p-label">Carrera</label>
-                  <select class="p-select">
+                  <select class="p-select" id="p-career">
+                    <option value="">Selecciona una carrera</option>
                     <option>Ingeniería en Sistemas</option>
                     <option>Ingeniería Industrial</option>
                     <option>Licenciatura en Matemáticas</option>
@@ -312,15 +315,15 @@ input[type="checkbox"] {
                 </div>
                 <div class="p-field">
                     <label class="p-label">Teléfono</label>
-                    <input class="p-input" placeholder="+52 123 456 7890" />
+                    <input class="p-input" id="p-phone" placeholder="+52 123 456 7890" />
                 </div>
                 <div class="p-field">
                     <label class="p-label">Semestre</label>
-                    <input class="p-input" type="number" placeholder="8" value="8" />
+                    <input class="p-input" id="p-semester" type="number" placeholder="8" />
                 </div>
                 <div class="p-field p-form-full">
                   <label class="p-label">Correo institucional</label>
-                  <input class="p-input" value="carlos.avila@universidad.edu.mx" style="color:var(--color-text-secondary); background:var(--color-background-secondary);" readonly />
+                  <input class="p-input" id="p-email" style="color:var(--color-text-secondary); background:var(--color-background-secondary);" readonly />
                   <span class="p-hint">El correo no puede modificarse. Es tu identificador institucional.</span>
                 </div>
               </div>
@@ -335,9 +338,6 @@ input[type="checkbox"] {
               <div class="p-field">
                 <label class="p-label">Áreas de interés</label>
                 <div class="p-tags-wrap" id="tags-wrap">
-                  <span class="p-tag">Programación web <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
-                  <span class="p-tag">Microcontroladores <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
-                  <span class="p-tag">Lógica <span class="p-tag-remove" onclick="removeTag(this)">×</span></span>
                   <span class="p-tag-add" onclick="addTag()">+ Agregar interés</span>
                 </div>
               </div>
@@ -362,7 +362,7 @@ input[type="checkbox"] {
                 </div>
               </div>
               <div class="p-actions">
-                <button class="p-save-btn">Guardar</button>
+                <button class="p-save-btn" id="p-save-interests-btn" type="button">Guardar</button>
               </div>
             </div>
           </div>
@@ -416,7 +416,7 @@ input[type="checkbox"] {
               </div>
               <div class="p-schedule-grid" id="sched"></div>
               <div class="p-actions" style="margin-top:24px;">
-                <button class="p-save-btn">Guardar disponibilidad</button>
+                <button class="p-save-btn" id="p-save-availability-btn" type="button">Guardar disponibilidad</button>
               </div>
             </div>
           </div>
@@ -491,70 +491,6 @@ input[type="checkbox"] {
   </div>
 </div>
 
-<script>
-const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-const times = ['09:00','11:00','13:00','15:00','17:00','19:00'];
-const selected = new Set(['0-0','0-2','1-0','1-2','2-1','3-3','4-3']);
-
-function buildSched() {
-  const g = document.getElementById('sched');
-  if (!g) return;
-  g.innerHTML = '';
-  const corner = document.createElement('div');
-  corner.className = 'p-sch-cell header';
-  g.appendChild(corner);
-  days.forEach(d => {
-    const h = document.createElement('div');
-    h.className = 'p-sch-cell header';
-    h.textContent = d;
-    g.appendChild(h);
-  });
-  times.forEach((t, ti) => {
-    const tc = document.createElement('div');
-    tc.className = 'p-sch-cell time';
-    tc.textContent = t;
-    g.appendChild(tc);
-    days.forEach((_, di) => {
-      const k = di + '-' + ti;
-      const c = document.createElement('div');
-      c.className = 'p-sch-cell' + (selected.has(k) ? ' selected' : '');
-      c.onclick = () => {
-        if (selected.has(k)) { selected.delete(k); c.classList.remove('selected'); }
-        else { selected.add(k); c.classList.add('selected'); }
-      };
-      g.appendChild(c);
-    });
-  });
-}
-
-function toggleMe(el) {
-  el.classList.toggle('on');
-}
-
-function removeTag(btn) {
-  btn.parentElement.remove();
-}
-
-function addTag() {
-  const name = prompt('Nuevo interés:');
-  if (!name || !name.trim()) return;
-  const wrap = document.getElementById('tags-wrap');
-  const addBtn = wrap.querySelector('.p-tag-add');
-  const tag = document.createElement('span');
-  tag.className = 'p-tag';
-  tag.innerHTML = name.trim() + ' <span class="p-tag-remove" onclick="removeTag(this)">×</span>';
-  wrap.insertBefore(tag, addBtn);
-}
-
-function setLevel(el, type) {
-  const pills = el.parentElement.querySelectorAll('.p-level-pill');
-  pills.forEach(p => { p.className = 'p-level-pill'; });
-  if (type === 'b') el.className = 'p-level-pill sel-b';
-  else if (type === 'i') el.className = 'p-level-pill sel-i';
-  else el.className = 'p-level-pill sel-a';
-}
-
-buildSched();
-</script>
+<script src="/js/perfil.js"></script>
 </body>
 </html>

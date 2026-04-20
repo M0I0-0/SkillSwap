@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 if (data.message === 'Login exitoso') {
+                    localStorage.setItem('skillswapCurrentUserEmail', email.trim().toLowerCase());
                     window.location.href = '/dashboard';
                 } else {
                     alert(data.message);
