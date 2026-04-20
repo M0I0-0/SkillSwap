@@ -139,7 +139,7 @@ function renderUserCard(user) {
   return `
     <div class="ss-user-card">
       <div class="ss-user-card-header ss-user-card-header-${color}">
-        <div class="ss-user-avatar ss-user-avatar-${color}">${escapeHtml(initialsFromName(user.name))}</div>
+        <div class="ss-user-avatar ss-user-avatar-${color}">${escapeHtml(getInitials(user.name))}</div>
         <div class="ss-user-card-header-info">
           <div class="ss-user-card-header-name">${escapeHtml(user.name)}</div>
           <div class="ss-user-card-header-career">${escapeHtml(user.career || "Carrera no especificada")}</div>
