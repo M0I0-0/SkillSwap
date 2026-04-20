@@ -8,6 +8,8 @@
 </head>
 <body>
   <div class="ss-wrap">
+
+    <!-- ===================== NAV ===================== -->
     <nav class="ss-nav">
       <div class="ss-logo">
         <div class="ss-logo-icon">
@@ -27,22 +29,43 @@
       </div>
 
       <div class="ss-nav-right">
+        <!-- Mensajes -->
         <div class="ss-icon-btn" title="Mensajes" onclick="window.location.href='/mensajeria'">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linejoin="round"/>
+            <path d="M2 3h12v8H9l-3 2V11H2V3z" stroke="white" stroke-width="1.2" stroke-linejoin="round"/>
           </svg>
         </div>
-        <div class="ss-icon-btn" title="Notificaciones">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="var(--color-text-secondary)" stroke-width="1.2" stroke-linecap="round"/>
-          </svg>
-          <div class="notif-dot"></div>
+
+        <!-- Notificaciones -->
+        <div class="ss-notif-wrapper" id="notif-btn" onclick="togglePanel()">
+          <div class="ss-icon-btn" title="Notificaciones">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0"
+                stroke="white" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <div class="notif-dot"></div>
+          </div>
+          <span id="notif-badge"></span>
+
+          <!-- Panel de notificaciones -->
+          <div id="notif-panel">
+            <div class="notif-panel-header">
+              <h3>Notificaciones</h3>
+              <span onclick="event.stopPropagation(); marcarTodasLeidas(); renderizarPanel(); actualizarBadge()">
+                Marcar todas como leídas
+              </span>
+            </div>
+            <div id="notif-lista"></div>
+          </div>
         </div>
-        <button class="ss-avatar" id="ss-nav-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">SS</button>
+        <button class="ss-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">CA</button>
       </div>
     </nav>
 
+    <!-- ===================== BODY ===================== -->
     <div class="ss-body">
+
+      <!-- SIDEBAR -->
       <aside class="ss-sidebar">
         <div class="ss-profile-card">
           <div class="ss-profile-top">
@@ -60,36 +83,27 @@
           <div class="ss-sidebar-label">Categorías</div>
           <div class="ss-cat-list">
             <div class="ss-cat-item active">
-              <div class="ss-cat-dot ss-cat-dot-all"></div>
-              Todas
+              <div class="ss-cat-dot ss-cat-dot-all"></div>Todas
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-programming"></div>
-              Programación
+              <div class="ss-cat-dot ss-cat-dot-programming"></div>Programación
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-math"></div>
-              Matemáticas
+              <div class="ss-cat-dot ss-cat-dot-math"></div>Matemáticas
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-language"></div>
-              Idiomas
+              <div class="ss-cat-dot ss-cat-dot-language"></div>Idiomas
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-physics"></div>
-              Física
+              <div class="ss-cat-dot ss-cat-dot-physics"></div>Física
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-chemistry"></div>
-              Química
+              <div class="ss-cat-dot ss-cat-dot-chemistry"></div>Química
             </div>
             <div class="ss-cat-item">
-              <div class="ss-cat-dot ss-cat-dot-writing"></div>
-              Redacción
+              <div class="ss-cat-dot ss-cat-dot-writing"></div>Redacción
             </div>
-            <div class="ss-cat-item ss-cat-item-add">
-              + Agregar categoría
-            </div>
+            <div class="ss-cat-item ss-cat-item-add">+ Agregar categoría</div>
           </div>
         </div>
       </aside>
@@ -101,10 +115,10 @@
         <div class="ss-welcome-banner">
           <div>
             <div class="ss-welcome-text" id="ss-welcome-text">¡Bienvenido de vuelta!</div>
-            <div class="ss-welcome-sub" id="ss-welcome-sub">Tienes 0 nuevos matches compatibles con tu horario</div>
+            <div class="ss-welcome-sub" id="ss-welcome-sub">Cargando matches...</div>
           </div>
           <div class="ss-welcome-stat">
-            <div class="ss-welcome-stat-num" id="ss-welcome-stat-num">0%</div>
+            <div class="ss-welcome-stat-num" id="ss-welcome-stat-num">—</div>
             <div class="ss-welcome-stat-label">compatibilidad promedio</div>
           </div>
         </div>
@@ -126,7 +140,7 @@
           </button>
         </div>
 
-        <!-- Sección: Matches recomendados -->
+        <!-- Matches recomendados -->
         <div>
           <div class="ss-section-header">
             <div class="ss-section-heading">
@@ -135,13 +149,12 @@
             </div>
             <span class="ss-section-action">Ver todos</span>
           </div>
-
           <div class="ss-match-grid" id="ss-recommended-grid"></div>
         </div>
 
         <div class="ss-divider"></div>
 
-        <!-- Sección: Ajustado a tu horario -->
+        <!-- Ajustado a tu horario -->
         <div>
           <div class="ss-section-header">
             <div class="ss-section-heading">
@@ -150,25 +163,24 @@
             </div>
             <span class="ss-section-action">Ver todos</span>
           </div>
-
           <div class="ss-match-grid" id="ss-schedule-grid"></div>
         </div>
 
         <div class="ss-divider"></div>
 
-        <!-- Sección: Usuarios recomendados para intercambio -->
+        <!-- Usuarios recomendados -->
         <div>
           <div class="ss-section-header">
             <div class="ss-section-heading">
               <span class="ss-section-title">Usuarios recomendados para intercambio</span>
             </div>
+            <span class="ss-section-action">Ver todos →</span>
           </div>
-
           <div class="ss-match-grid" id="ss-user-grid"></div>
         </div>
 
       </main>
-      <!-- ===================== FIN MAIN ===================== -->
+      <!-- FIN MAIN -->
 
     </div>
     <!-- fin ss-body -->
@@ -176,7 +188,7 @@
   </div>
   <!-- fin ss-wrap -->
 
-  <script src="/js/dashboard.js"></script>
+  <script src="/js/notificaciones.js"></script>
 
 </body>
 </html>
