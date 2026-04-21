@@ -253,6 +253,10 @@ app.get('/mensajeria', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'pages', 'mensajeria.html'));
 });
 
+app.get('/notificaciones', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'pages', 'notificaciones.html'));
+});
+
 // REGISTRO
 app.post("/registrar", async (req, res) => {
     const { nombres, apellidoPaterno, apellidoMaterno, matricula, carrera, correo, intereses, disponibilidad, password } = req.body;
