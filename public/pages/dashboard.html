@@ -82,25 +82,25 @@
         <div class="ss-sidebar-section">
           <div class="ss-sidebar-label">Categorías</div>
           <div class="ss-cat-list">
-            <div class="ss-cat-item active">
+            <div class="ss-cat-item active" data-category="all">
               <div class="ss-cat-dot ss-cat-dot-all"></div>Todas
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="programming">
               <div class="ss-cat-dot ss-cat-dot-programming"></div>Programación
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="math">
               <div class="ss-cat-dot ss-cat-dot-math"></div>Matemáticas
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="language">
               <div class="ss-cat-dot ss-cat-dot-language"></div>Idiomas
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="physics">
               <div class="ss-cat-dot ss-cat-dot-physics"></div>Física
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="chemistry">
               <div class="ss-cat-dot ss-cat-dot-chemistry"></div>Química
             </div>
-            <div class="ss-cat-item">
+            <div class="ss-cat-item" data-category="writing">
               <div class="ss-cat-dot ss-cat-dot-writing"></div>Redacción
             </div>
             <div class="ss-cat-item ss-cat-item-add">+ Agregar categoría</div>
@@ -130,18 +130,43 @@
               <circle cx="7" cy="7" r="4.5" stroke="var(--color-text-tertiary)" stroke-width="1.2"/>
               <path d="M10.5 10.5L13 13" stroke="var(--color-text-tertiary)" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
-            <input class="ss-search-input" placeholder="Buscar habilidades, instructores...">
+            <input class="ss-search-input" id="ss-search-input" placeholder="Buscar habilidades, instructores...">
           </div>
-          <button class="ss-filter-btn">
+          <div class="ss-filter-wrap">
+          <button class="ss-filter-btn" id="ss-filter-btn" type="button">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 3h12M3 7h8M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
             Filtros
           </button>
+          <div class="ss-filter-panel hidden" id="ss-filter-panel">
+            <div class="ss-filter-panel-title">Filtrar resultados</div>
+            <label class="ss-filter-label" for="ss-filter-type">Mostrar</label>
+            <select class="ss-filter-select" id="ss-filter-type">
+              <option value="all">Todo</option>
+              <option value="courses">Solo cursos</option>
+              <option value="users">Solo usuarios</option>
+            </select>
+            <label class="ss-filter-label" for="ss-filter-level">Nivel</label>
+            <select class="ss-filter-select" id="ss-filter-level">
+              <option value="all">Todos</option>
+              <option value="basico">Básico</option>
+              <option value="intermedio">Intermedio</option>
+              <option value="avanzado">Avanzado</option>
+            </select>
+            <label class="ss-filter-label" for="ss-filter-compatibility">Compatibilidad mínima</label>
+            <select class="ss-filter-select" id="ss-filter-compatibility">
+              <option value="0">Cualquiera</option>
+              <option value="80">80% o más</option>
+              <option value="90">90% o más</option>
+            </select>
+            <button class="ss-filter-reset" id="ss-filter-reset" type="button">Limpiar filtros</button>
+          </div>
+          </div>
         </div>
 
         <!-- Matches recomendados -->
-        <div>
+        <div id="ss-recommended-section">
           <div class="ss-section-header">
             <div class="ss-section-heading">
               <span class="ss-section-title">Matches recomendados</span>
@@ -155,7 +180,7 @@
         <div class="ss-divider"></div>
 
         <!-- Ajustado a tu horario -->
-        <div>
+        <div id="ss-schedule-section">
           <div class="ss-section-header">
             <div class="ss-section-heading">
               <span class="ss-section-title">Ajustado a tu horario</span>
@@ -169,7 +194,7 @@
         <div class="ss-divider"></div>
 
         <!-- Usuarios recomendados -->
-        <div>
+        <div id="ss-user-section">
           <div class="ss-section-header">
             <div class="ss-section-heading">
               <span class="ss-section-title">Usuarios recomendados para intercambio</span>

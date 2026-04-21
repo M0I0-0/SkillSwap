@@ -14,6 +14,19 @@ const userColorConfig = {
   teal: "teal"
 };
 
+const dashboardState = {
+  recommendedMatches: [],
+  scheduleMatches: [],
+  userMatches: [],
+  filters: {
+    search: "",
+    category: "all",
+    type: "all",
+    level: "all",
+    minCompatibility: 0
+  }
+};
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -48,6 +61,112 @@ function splitInterests(interests) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function normalizeLevelValue(level) {
+  const normalized = normalizeText(level);
+
+  if (normalized.startsWith("avan")) return "avanzado";
+  if (normalized.startsWith("inter")) return "intermedio";
+  return "basico";
+}
+
+function courseMatchesSearch(match, searchValue) {
+  if (!searchValue) {
+    return true;
+  }
+
+  const haystack = normalizeText([
+    match.title,
+    match.instructor,
+    match.reason,
+    match.category,
+    match.schedule,
+    match.level
+  ].join(" "));
+
+  return haystack.includes(searchValue);
+}
+
+function userMatchesSearch(user, searchValue) {
+  if (!searchValue) {
+    return true;
+  }
+
+  const haystack = normalizeText([
+    user.name,
+    user.career,
+    user.teaches,
+    user.learns,
+    user.tag_primary,
+    user.tag_secondary
+  ].join(" "));
+
+  return haystack.includes(searchValue);
+}
+
+function courseMatchesCategory(match, category) {
+  if (category === "all") {
+    return true;
+  }
+
+  return normalizeText(match.category) === normalizeText(category);
+}
+
+function userMatchesCategory(user, category) {
+  if (category === "all") {
+    return true;
+  }
+
+  const haystack = normalizeText([
+    user.career,
+    user.teaches,
+    user.learns,
+    user.tag_primary,
+    user.tag_secondary
+  ].join(" "));
+
+  const categoryLabels = {
+    programming: "programacion",
+    math: "matematicas",
+    language: "idiomas",
+    physics: "fisica",
+    chemistry: "quimica",
+    writing: "redaccion"
+  };
+
+  const categoryNeedle = categoryLabels[category] || category;
+  return haystack.includes(normalizeText(categoryNeedle));
+}
+
+function matchCompatibility(value) {
+  return Math.max(0, Number(value) || 0);
+}
+
+function updateSectionVisibility() {
+  const recommendedSection = document.getElementById("ss-recommended-section");
+  const scheduleSection = document.getElementById("ss-schedule-section");
+  const userSection = document.getElementById("ss-user-section");
+  const type = dashboardState.filters.type;
+
+  if (recommendedSection) {
+    recommendedSection.classList.toggle("ss-section-hidden", type === "users");
+  }
+
+  if (scheduleSection) {
+    scheduleSection.classList.toggle("ss-section-hidden", type === "users");
+  }
+
+  if (userSection) {
+    userSection.classList.toggle("ss-section-hidden", type === "courses");
+  }
 }
 
 async function loadCurrentUser() {
@@ -205,6 +324,155 @@ function updateSummary(summary) {
   }
 }
 
+function applyFilters() {
+  const { search, category, type, level, minCompatibility } = dashboardState.filters;
+  const searchValue = normalizeText(search);
+
+  const filteredRecommended = dashboardState.recommendedMatches.filter((match) =>
+    courseMatchesSearch(match, searchValue) &&
+    courseMatchesCategory(match, category) &&
+    (level === "all" || normalizeLevelValue(match.level) === level) &&
+    matchCompatibility(match.match_percent) >= minCompatibility
+  );
+
+  const filteredSchedule = dashboardState.scheduleMatches.filter((match) =>
+    courseMatchesSearch(match, searchValue) &&
+    courseMatchesCategory(match, category) &&
+    (level === "all" || normalizeLevelValue(match.level) === level) &&
+    matchCompatibility(match.match_percent) >= minCompatibility
+  );
+
+  const filteredUsers = dashboardState.userMatches.filter((user) =>
+    userMatchesSearch(user, searchValue) &&
+    userMatchesCategory(user, category) &&
+    matchCompatibility(user.compatibility) >= minCompatibility
+  );
+
+  const visibleCompatibilities = [
+    ...(type !== "users" ? filteredRecommended.map((item) => matchCompatibility(item.match_percent)) : []),
+    ...(type !== "users" ? filteredSchedule.map((item) => matchCompatibility(item.match_percent)) : []),
+    ...(type !== "courses" ? filteredUsers.map((item) => matchCompatibility(item.compatibility)) : [])
+  ].filter((value) => value > 0);
+
+  const averageCompatibility = visibleCompatibilities.length
+    ? Math.round(visibleCompatibilities.reduce((sum, value) => sum + value, 0) / visibleCompatibilities.length)
+    : 0;
+
+  updateSummary({
+    newMatches: filteredRecommended.length,
+    averageCompatibility
+  });
+
+  renderGrid(
+    "ss-recommended-grid",
+    filteredRecommended,
+    renderCourseCard,
+    "No hay matches recomendados con los filtros actuales."
+  );
+  renderGrid(
+    "ss-schedule-grid",
+    filteredSchedule,
+    renderCourseCard,
+    "No hay matches por horario con los filtros actuales."
+  );
+  renderGrid(
+    "ss-user-grid",
+    filteredUsers,
+    renderUserCard,
+    "No hay usuarios sugeridos con los filtros actuales."
+  );
+
+  updateSectionVisibility();
+}
+
+function setActiveCategory(category) {
+  dashboardState.filters.category = category;
+
+  document.querySelectorAll(".ss-cat-item[data-category]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.category === category);
+  });
+
+  applyFilters();
+}
+
+function bindDashboardControls() {
+  const searchInput = document.getElementById("ss-search-input");
+  const filterButton = document.getElementById("ss-filter-btn");
+  const filterPanel = document.getElementById("ss-filter-panel");
+  const filterType = document.getElementById("ss-filter-type");
+  const filterLevel = document.getElementById("ss-filter-level");
+  const filterCompatibility = document.getElementById("ss-filter-compatibility");
+  const filterReset = document.getElementById("ss-filter-reset");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", (event) => {
+      dashboardState.filters.search = event.target.value;
+      applyFilters();
+    });
+  }
+
+  document.querySelectorAll(".ss-cat-item[data-category]").forEach((item) => {
+    item.addEventListener("click", () => {
+      setActiveCategory(item.dataset.category);
+    });
+  });
+
+  if (filterButton && filterPanel) {
+    filterButton.addEventListener("click", () => {
+      filterPanel.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!filterPanel.classList.contains("hidden") && !filterPanel.contains(event.target) && !filterButton.contains(event.target)) {
+        filterPanel.classList.add("hidden");
+      }
+    });
+  }
+
+  if (filterType) {
+    filterType.addEventListener("change", (event) => {
+      dashboardState.filters.type = event.target.value;
+      applyFilters();
+    });
+  }
+
+  if (filterLevel) {
+    filterLevel.addEventListener("change", (event) => {
+      dashboardState.filters.level = event.target.value;
+      applyFilters();
+    });
+  }
+
+  if (filterCompatibility) {
+    filterCompatibility.addEventListener("change", (event) => {
+      dashboardState.filters.minCompatibility = Number(event.target.value) || 0;
+      applyFilters();
+    });
+  }
+
+  if (filterReset) {
+    filterReset.addEventListener("click", () => {
+      dashboardState.filters = {
+        search: "",
+        category: "all",
+        type: "all",
+        level: "all",
+        minCompatibility: 0
+      };
+
+      if (searchInput) searchInput.value = "";
+      if (filterType) filterType.value = "all";
+      if (filterLevel) filterLevel.value = "all";
+      if (filterCompatibility) filterCompatibility.value = "0";
+      setActiveCategory("all");
+
+      if (filterPanel) {
+        filterPanel.classList.add("hidden");
+      }
+    });
+  }
+}
+
 async function loadDashboard() {
   renderGrid("ss-recommended-grid", [], renderCourseCard, "Todavía no hay matches recomendados guardados.");
   renderGrid("ss-schedule-grid", [], renderCourseCard, "Todavía no hay matches ajustados a horario.");
@@ -217,26 +485,10 @@ async function loadDashboard() {
     }
 
     const data = await response.json();
-
-    updateSummary(data.summary);
-    renderGrid(
-      "ss-recommended-grid",
-      data.recommendedMatches,
-      renderCourseCard,
-      "Todavía no hay matches recomendados guardados."
-    );
-    renderGrid(
-      "ss-schedule-grid",
-      data.scheduleMatches,
-      renderCourseCard,
-      "Todavía no hay matches ajustados a horario."
-    );
-    renderGrid(
-      "ss-user-grid",
-      data.userMatches,
-      renderUserCard,
-      "Todavía no hay usuarios sugeridos."
-    );
+    dashboardState.recommendedMatches = Array.isArray(data.recommendedMatches) ? data.recommendedMatches : [];
+    dashboardState.scheduleMatches = Array.isArray(data.scheduleMatches) ? data.scheduleMatches : [];
+    dashboardState.userMatches = Array.isArray(data.userMatches) ? data.userMatches : [];
+    applyFilters();
   } catch (error) {
     updateSummary({ newMatches: 0, averageCompatibility: 0 });
     renderGrid("ss-recommended-grid", [], renderCourseCard, "No se pudieron cargar los matches recomendados.");
@@ -246,5 +498,6 @@ async function loadDashboard() {
   }
 }
 
+document.addEventListener("DOMContentLoaded", bindDashboardControls);
 document.addEventListener("DOMContentLoaded", loadDashboard);
 document.addEventListener("DOMContentLoaded", loadCurrentUser);
