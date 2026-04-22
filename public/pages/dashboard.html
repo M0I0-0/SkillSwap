@@ -171,12 +171,78 @@
       background: #fff; border: 1px solid #e2e8f0;
       border-radius: 16px; overflow: hidden;
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     }
     .ss-enrolled-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.09); }
+    .ss-enrolled-card.expanded {
+      border-color: #93c5fd;
+      box-shadow: 0 14px 32px rgba(37,99,235,0.14);
+    }
     .ss-enrolled-card-body { padding: 1.1rem 1.25rem 1.25rem; }
+    .ss-enrolled-toggle {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0;
+      border: none;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+    }
+    .ss-enrolled-toggle:focus-visible {
+      outline: 3px solid rgba(37,99,235,0.18);
+      outline-offset: 6px;
+      border-radius: 12px;
+    }
+    .ss-enrolled-main { flex: 1; min-width: 0; }
     .ss-enrolled-card-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.3rem; }
     .ss-enrolled-card-instructor { font-size: 0.83rem; color: #64748b; margin-bottom: 0.85rem; }
+    .ss-enrolled-toggle-hint {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.85rem;
+      font-size: 0.76rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .ss-enrolled-chevron {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.25s ease, background 0.2s ease;
+    }
+    .ss-enrolled-card.expanded .ss-enrolled-chevron {
+      transform: rotate(180deg);
+      background: #dbeafe;
+    }
+    .ss-enrolled-card-details {
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      margin-top: 0;
+      transition: max-height 0.28s ease, opacity 0.2s ease, margin-top 0.28s ease;
+    }
+    .ss-enrolled-card.expanded .ss-enrolled-card-details {
+      max-height: 420px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+    .ss-enrolled-detail-copy {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin: 0 0 0.85rem;
+    }
     .ss-progress-wrap { margin-bottom: 0.75rem; }
     .ss-progress-label {
       display: flex; justify-content: space-between;
@@ -971,6 +1037,11 @@ function renderEnrolledCard(i) {
   const yaCalifico = !!i.calificacion;
   const badgeClass = i.estado === "completado" ? "" : "pending";
   const badgeLabel = i.estado === "completado" ? "✓ Completado" : "En curso";
+  const detalleTexto = yaCalifico
+    ? "Ya dejaste tu calificación para este curso."
+    : puedeCalificar
+    ? "Este curso ya se puede puntuar. Elige de 1 a 5 estrellas."
+    : "Cuando alcances al menos 60% de progreso, aquí podrás calificarlo.";
 
   const starsHtml = puedeCalificar
     ? `<div class="ss-star-row" id="stars-${i.habilidad_id}">
@@ -978,7 +1049,7 @@ function renderEnrolledCard(i) {
           <button class="ss-star-btn" data-val="${n}"
             onmouseover="hoverStars(${i.habilidad_id},${n})"
             onmouseout="resetStars(${i.habilidad_id})"
-            onclick="calificar(${i.habilidad_id},${n},this)">★</button>`).join("")}
+            onclick="calificar(${i.habilidad_id},${n})">★</button>`).join("")}
         <span class="ss-star-hint">Califica este curso</span>
        </div>`
     : yaCalifico
@@ -993,29 +1064,60 @@ function renderEnrolledCard(i) {
   return `<div class="ss-enrolled-card" id="enrolled-card-${i.habilidad_id}">
     <div style="height:7px;background:${cfg.color}"></div>
     <div class="ss-enrolled-card-body">
-      <div class="ss-enrolled-card-title">${esc(i.titulo)}</div>
-      <div class="ss-enrolled-card-instructor">👤 ${esc(i.instructor)}</div>
-      <div class="ss-progress-wrap">
-        <div class="ss-progress-label">
-          <span>Progreso</span><span>${progreso}%</span>
+      <button class="ss-enrolled-toggle" type="button" aria-expanded="false"
+        aria-controls="enrolled-details-${i.habilidad_id}" onclick="toggleEnrolledCard(${i.habilidad_id})">
+        <div class="ss-enrolled-main">
+          <div class="ss-enrolled-card-title">${esc(i.titulo)}</div>
+          <div class="ss-enrolled-card-instructor">👤 ${esc(i.instructor)}</div>
+          <div class="ss-progress-wrap">
+            <div class="ss-progress-label">
+              <span>Progreso</span><span>${progreso}%</span>
+            </div>
+            <div class="ss-progress-bar">
+              <div class="ss-progress-fill" style="width:${progreso}%"></div>
+            </div>
+          </div>
+          <div class="ss-enrolled-toggle-hint">
+            <span>Haz clic para ver detalles y calificar</span>
+            <span class="ss-enrolled-badge ${badgeClass}">${badgeLabel}</span>
+          </div>
         </div>
-        <div class="ss-progress-bar">
-          <div class="ss-progress-fill" style="width:${progreso}%"></div>
+        <span class="ss-enrolled-chevron" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3.5 5.5L7 9l3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+      <div class="ss-enrolled-card-details" id="enrolled-details-${i.habilidad_id}">
+        <p class="ss-enrolled-detail-copy">${detalleTexto}</p>
+        ${starsHtml}
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;font-size:0.78rem;color:#64748b;margin-bottom:0.85rem;">
+          ${nivelPill(i.nivel)}
+          <span class="ss-teach-card-pill">${esc(i.categoria_label || cfg.label)}</span>
         </div>
-      </div>
-      ${starsHtml}
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;font-size:0.78rem;color:#64748b;margin-bottom:0.85rem;">
-        ${nivelPill(i.nivel)}
-        <span class="ss-teach-card-pill">${esc(i.categoria_label || cfg.label)}</span>
-      </div>
-      <div class="ss-enrolled-card-footer">
-        <span class="ss-enrolled-badge ${badgeClass}">${badgeLabel}</span>
-        <button class="ss-btn-leave" onclick="darDeBaja(${i.habilidad_id}, '${esc(i.titulo)}')">
-          Darse de baja
-        </button>
+        <div class="ss-enrolled-card-footer">
+          <span class="ss-enrolled-badge ${badgeClass}">${badgeLabel}</span>
+          <button class="ss-btn-leave" onclick="darDeBaja(${i.habilidad_id}, '${esc(i.titulo)}')">
+            Darse de baja
+          </button>
+        </div>
       </div>
     </div>
   </div>`;
+}
+
+function toggleEnrolledCard(habId) {
+  const card = document.getElementById(`enrolled-card-${habId}`);
+  if (!card) return;
+
+  const willExpand = !card.classList.contains("expanded");
+  document.querySelectorAll(".ss-enrolled-card.expanded").forEach(otherCard => {
+    otherCard.classList.remove("expanded");
+    otherCard.querySelector(".ss-enrolled-toggle")?.setAttribute("aria-expanded", "false");
+  });
+
+  card.classList.toggle("expanded", willExpand);
+  card.querySelector(".ss-enrolled-toggle")?.setAttribute("aria-expanded", String(willExpand));
 }
 
 function hoverStars(habId, val) {
@@ -1029,7 +1131,7 @@ function resetStars(habId) {
   });
 }
 
-async function calificar(habId, estrellas, btn) {
+async function calificar(habId, estrellas) {
   const email = getCurrentUserEmail();
   if (!email) return;
   try {
@@ -1041,6 +1143,11 @@ async function calificar(habId, estrellas, btn) {
     const data = await res.json();
     if (res.ok) {
       toast("¡Gracias por tu calificación! ⭐", "success");
+      inscripcionesData = inscripcionesData.map(i =>
+        i.habilidad_id === habId ? { ...i, calificacion: estrellas } : i
+      );
+      const detailCopy = document.querySelector(`#enrolled-details-${habId} .ss-enrolled-detail-copy`);
+      if (detailCopy) detailCopy.textContent = "Ya dejaste tu calificación para este curso.";
       // Actualizar UI localmente
       const row = document.getElementById(`stars-${habId}`);
       if (row) {
