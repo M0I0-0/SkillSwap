@@ -56,29 +56,29 @@
   <div class="p-body">
     <aside class="p-sidebar">
       <div class="p-side-label">Mi cuenta</div>
-      <div class="p-side-item active" onclick="window.location.href='/perfil'">
+      <div class="p-side-item active" data-target="perfil">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Perfil
       </div>
-      <div class="p-side-item">
+      <div class="p-side-item" data-target="habilidades">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M5 8h6M5 5.5h6M5 10.5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Habilidades
       </div>
-      <div class="p-side-item">
+      <div class="p-side-item" data-target="disponibilidad">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 3V1.5M11 3V1.5M2 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Disponibilidad
       </div>
       <div class="p-side-divider"></div>
       <div class="p-side-label">Configuración</div>
-      <div class="p-side-item">
+      <div class="p-side-item" data-target="privacidad">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><path d="M8 10a2 2 0 100-4 2 2 0 000 4z" stroke="currentColor" stroke-width="1.5"/><path d="M8 2v1.5M8 12.5V14M14 8h-1.5M3.5 8H2M12.2 3.8l-1.1 1.1M4.9 11.1l-1.1 1.1M12.2 12.2l-1.1-1.1M4.9 4.9L3.8 3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Privacidad
       </div>
-      <div class="p-side-item">
+      <div class="p-side-item" data-target="notificaciones-config">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2a4 4 0 00-4 4v2l-1 2h10l-1-2V6a4 4 0 00-4-4zM6.5 12a1.5 1.5 0 003 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Notificaciones
       </div>
-      <div class="p-side-item">
+      <div class="p-side-item" data-target="seguridad">
         <svg class="p-side-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="11" width="12" height="3" rx="1" stroke="currentColor" stroke-width="1.5"/><path d="M5 11V8l3-5 3 5v3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
         Seguridad
       </div>
@@ -97,7 +97,7 @@
       <div class="p-main-grid">
         
         <div class="p-col">
-          <div class="p-section">
+          <div class="p-section" id="perfil">
             <div class="p-section-head">
               <span class="p-section-title">Información personal</span>
               <button class="p-save-btn" id="p-save-personal-btn" type="button">Guardar cambios</button>
@@ -152,7 +152,7 @@
             </div>
           </div>
 
-          <div class="p-section">
+          <div class="p-section" id="habilidades">
             <div class="p-section-head">
               <span class="p-section-title">Intereses y habilidades</span>
             </div>
@@ -189,7 +189,7 @@
             </div>
           </div>
           
-          <div class="p-section">
+          <div class="p-section" id="seguridad">
             <div class="p-section-head">
               <span class="p-section-title">Seguridad y Cuenta</span>
             </div>
@@ -222,7 +222,7 @@
         </div>
 
         <div class="p-col">
-          <div class="p-section">
+          <div class="p-section" id="disponibilidad">
             <div class="p-section-head">
               <span class="p-section-title">Disponibilidad semanal</span>
               <span style="font-size:13px;color:var(--color-text-tertiary);">Toca una celda para alternar</span>
@@ -243,7 +243,7 @@
             </div>
           </div>
 
-          <div class="p-section">
+          <div class="p-section" id="privacidad">
             <div class="p-section-head">
               <span class="p-section-title">Privacidad del perfil</span>
             </div>
@@ -272,7 +272,7 @@
             </div>
           </div>
 
-          <div class="p-section">
+          <div class="p-section" id="notificaciones-config">
             <div class="p-section-head">
               <span class="p-section-title">Notificaciones</span>
             </div>

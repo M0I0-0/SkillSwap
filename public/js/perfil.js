@@ -158,6 +158,55 @@ function setLevel(el, type) {
   else el.className = "p-level-pill sel-a";
 }
 
+function setActiveSidebarItem(targetId) {
+  document.querySelectorAll(".p-side-item[data-target]").forEach((item) => {
+    item.classList.toggle("active", item.dataset.target === targetId);
+  });
+}
+
+function scrollToProfileSection(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) {
+    return;
+  }
+
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  setActiveSidebarItem(targetId);
+}
+
+function bindSidebarNavigation() {
+  const sidebarItems = document.querySelectorAll(".p-side-item[data-target]");
+  if (!sidebarItems.length) {
+    return;
+  }
+
+  sidebarItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      scrollToProfileSection(item.dataset.target);
+    });
+  });
+
+  const sections = Array.from(document.querySelectorAll(".p-section[id]"));
+  if (!sections.length) {
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    const visibleSection = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+    if (visibleSection) {
+      setActiveSidebarItem(visibleSection.target.id);
+    }
+  }, {
+    root: document.querySelector(".p-main-wrapper"),
+    threshold: 0.35,
+  });
+
+  sections.forEach((section) => observer.observe(section));
+}
+
 async function loadProfile() {
   const currentUserEmail = getCurrentUserEmail();
 
@@ -241,6 +290,7 @@ async function saveProfile() {
 document.addEventListener("DOMContentLoaded", () => {
   buildSched();
   loadProfile();
+  bindSidebarNavigation();
 
   const savePersonalButton = document.getElementById("p-save-personal-btn");
   const saveInterestsButton = document.getElementById("p-save-interests-btn");
