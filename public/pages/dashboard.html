@@ -736,6 +736,11 @@ document.querySelectorAll(".ss-nav-link[data-view]").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
 });
 
+const initialView = new URLSearchParams(window.location.search).get("view");
+if (VIEWS.includes(initialView)) {
+  switchView(initialView);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    UTILIDADES
 ═══════════════════════════════════════════════════════════════ */
