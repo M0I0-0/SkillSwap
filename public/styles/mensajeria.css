@@ -393,6 +393,64 @@ body {
   font-size: 2rem;
 }
 
+.notif-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--msg-border);
+  color: var(--msg-text);
+}
+
+.notif-row:last-child {
+  border-bottom: none;
+}
+
+.notif-row-unread {
+  background-color: #f0f7ff;
+}
+
+.notif-row:hover {
+  background-color: #f8fafc;
+}
+
+.notif-row-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.notif-row-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.notif-row-copy p {
+  font-size: 0.82rem;
+  color: var(--msg-text);
+  line-height: 1.45;
+  margin: 0 0 0.2rem;
+}
+
+.notif-row-copy span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--msg-text-soft);
+}
+
+.notif-row-meta {
+  min-width: 72px;
+  text-align: right;
+}
+
+.notif-row-meta span {
+  font-size: 0.72rem;
+  color: var(--msg-text-faint);
+}
+
 .ss-avatar {
   width: 36px;
   height: 36px;
