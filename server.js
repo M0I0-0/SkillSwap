@@ -1,426 +1,1111 @@
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const bcrypt = require('bcrypt');
-const crypto = require('crypto');
-const sgMail = require('@sendgrid/mail');
-const db = require('./db/database.js');
+require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const sgMail = require("@sendgrid/mail");
+const db = require("./db/database.js");
+const { calcularMatch, calcularCompatibilidadUsuarios } = require("./matching.js");
 
 const app = express();
-const server = http.createServer(app); // <-- envuelve express para Socket.io
-const io = new Server(server);         // <-- Socket.io sobre el server HTTP
+const server = http.createServer(app);
+const io = new Server(server);
 
-const port = 3000;
+const PORT = process.env.PORT || 3000;
 const RESET_TOKEN_MINUTES = 15;
 const PASSWORD_MIN_LENGTH = 8;
-const GENERIC_RESET_MESSAGE = 'Si el correo existe, enviaremos instrucciones para restablecer la contraseña.';
+const GENERIC_RESET_MESSAGE =
+  "Si el correo existe, enviaremos instrucciones para restablecer la contraseña.";
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOCKOUT_MINUTES = 3;
 
-// Middlewares
-app.use(express.static(path.join(__dirname, 'public')));
+// ── Middlewares ───────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── DB Helpers ────────────────────────────────────────────────────
 function runQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function onRun(err) {
-            if (err) { reject(err); return; }
-            resolve(this);
-        });
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
     });
+  });
 }
 
 function getQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) { reject(err); return; }
-            resolve(row);
-        });
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
     });
+  });
 }
 
 function allQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) { reject(err); return; }
-            resolve(rows);
-        });
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
     });
+  });
 }
 
-function buildFullName(user) {
-    return [user.nombres, user.apellido_paterno, user.apellido_materno]
-        .filter(Boolean).join(' ').trim();
+// ── User helpers ──────────────────────────────────────────────────
+function buildFullName(u) {
+  return [u.nombres, u.apellido_paterno, u.apellido_materno]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 }
 
-function splitFullName(fullName = '') {
-    const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return { nombres: '', apellidoPaterno: '', apellidoMaterno: '' };
-    if (parts.length === 1) return { nombres: parts[0], apellidoPaterno: '', apellidoMaterno: '' };
-    if (parts.length === 2) return { nombres: parts[0], apellidoPaterno: parts[1], apellidoMaterno: '' };
-    return {
-        nombres: parts.slice(0, -2).join(' '),
-        apellidoPaterno: parts[parts.length - 2],
-        apellidoMaterno: parts[parts.length - 1]
-    };
+function splitFullName(fullName = "") {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { nombres: "", apellidoPaterno: "", apellidoMaterno: "" };
+  if (parts.length === 1) return { nombres: parts[0], apellidoPaterno: "", apellidoMaterno: "" };
+  if (parts.length === 2) return { nombres: parts[0], apellidoPaterno: parts[1], apellidoMaterno: "" };
+  return {
+    nombres: parts.slice(0, -2).join(" "),
+    apellidoPaterno: parts[parts.length - 2],
+    apellidoMaterno: parts[parts.length - 1],
+  };
 }
 
 async function getUserByEmail(email) {
-    return getQuery(
-        `SELECT id, nombres, apellido_paterno, apellido_materno, matricula, carrera, correo, intereses, disponibilidad, telefono, semestre
-         FROM usuarios WHERE lower(correo) = lower(?)`,
-        [email]
-    );
+  return getQuery(
+    `SELECT id, nombres, apellido_paterno, apellido_materno, matricula, carrera,
+            correo, intereses, disponibilidad, telefono, semestre,
+            intentos_fallidos, bloqueado_hasta, email_verificado
+     FROM usuarios WHERE lower(correo) = lower(?)`,
+    [email]
+  );
 }
 
-function formatUserProfile(user) {
-    return {
-        id: user.id,
-        fullName: buildFullName(user),
-        nombres: user.nombres || '',
-        apellidoPaterno: user.apellido_paterno || '',
-        apellidoMaterno: user.apellido_materno || '',
-        matricula: user.matricula || '',
-        career: user.carrera || '',
-        email: user.correo || '',
-        interests: user.intereses || '',
-        availability: user.disponibilidad || '',
-        phone: user.telefono || '',
-        semester: user.semestre || ''
-    };
+function formatUserProfile(u) {
+  return {
+    id: u.id,
+    fullName: buildFullName(u),
+    nombres: u.nombres || "",
+    apellidoPaterno: u.apellido_paterno || "",
+    apellidoMaterno: u.apellido_materno || "",
+    matricula: u.matricula || "",
+    career: u.carrera || "",
+    email: u.correo || "",
+    interests: u.intereses || "",
+    availability: u.disponibilidad || "",
+    phone: u.telefono || "",
+    semester: u.semestre || "",
+  };
 }
 
 function isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-
 function isValidPassword(password) {
-    return typeof password === 'string' && password.length >= PASSWORD_MIN_LENGTH;
+  return typeof password === "string" && password.length >= PASSWORD_MIN_LENGTH;
 }
 
+// ── Email helpers ─────────────────────────────────────────────────
 function getResetMailConfig() {
-    const { SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, GMAIL_USER } = process.env;
-    const fromEmail = SENDGRID_FROM_EMAIL || GMAIL_USER;
-    if (!SENDGRID_API_KEY || !fromEmail) return null;
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    return { fromEmail };
+  const { SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, GMAIL_USER } = process.env;
+  const fromEmail = SENDGRID_FROM_EMAIL || GMAIL_USER;
+  if (!SENDGRID_API_KEY || !fromEmail) return null;
+  sgMail.setApiKey(SENDGRID_API_KEY);
+  return { fromEmail };
 }
 
 async function sendResetEmail(recipientEmail, resetLink) {
-    const mailConfig = getResetMailConfig();
-    if (!mailConfig) {
-        console.warn('No se envio el correo de recuperacion porque faltan SENDGRID_API_KEY y/o un remitente valido.');
-        console.warn(`Enlace de recuperacion generado para ${recipientEmail}: ${resetLink}`);
-        return;
-    }
-    await sgMail.send({
-        to: recipientEmail,
-        from: { email: mailConfig.fromEmail, name: 'SkillSwap' },
-        replyTo: mailConfig.fromEmail,
-        subject: 'Recupera tu contraseña de SkillSwap',
-        text: [
-            'Recibimos una solicitud para cambiar tu contrasena.',
-            `Abre este enlace para crear una nueva contrasena: ${resetLink}`,
-            `Este enlace expirara en ${RESET_TOKEN_MINUTES} minutos.`,
-            'Si no solicitaste este cambio, puedes ignorar este correo.'
-        ].join('\n\n'),
-        html: `
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
-                <h2>Restablecer contraseña</h2>
-                <p>Recibimos una solicitud para cambiar tu contraseña.</p>
-                <p>Haz clic en el siguiente enlace para crear una nueva contraseña:</p>
-                <p>
-                    <a href="${resetLink}" style="display:inline-block;padding:12px 20px;background:#1463f3;color:#ffffff;text-decoration:none;border-radius:8px;">
-                        Restablecer contraseña
-                    </a>
-                </p>
-                <p>Este enlace expirará en ${RESET_TOKEN_MINUTES} minutos.</p>
-                <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
-            </div>
-        `,
-        trackingSettings: {
-            clickTracking: { enable: false, enableText: false },
-            openTracking: { enable: false }
-        }
-    });
+  const mailConfig = getResetMailConfig();
+  if (!mailConfig) {
+    console.warn(`[DEV] Enlace de recuperación para ${recipientEmail}: ${resetLink}`);
+    return;
+  }
+  await sgMail.send({
+    to: recipientEmail,
+    from: { email: mailConfig.fromEmail, name: "SkillSwap" },
+    subject: "Recupera tu contraseña de SkillSwap",
+    html: `<p>Haz clic aquí para restablecer tu contraseña:</p>
+           <a href="${resetLink}">Restablecer contraseña</a>
+           <p>Este enlace expirará en ${RESET_TOKEN_MINUTES} minutos.</p>`,
+  });
 }
 
-// ══════════════════════════════════════════════
-// SOCKET.IO — Mensajería en tiempo real
-// ══════════════════════════════════════════════
-const usuariosConectados = {}; // socketId -> { nombre, sala }
-const historialMensajes = {};  // sala -> [ ...mensajes ]
+// ── MOTOR DE MATCHING ─────────────────────────────────────────────
+/**
+ * Genera o actualiza los matches de UN usuario.
+ * Se invoca al hacer login, al actualizar perfil y semanalmente (cron).
+ */
+async function generarMatchesUsuario(usuarioId) {
+  const usuario = await getQuery(
+    `SELECT id, intereses, disponibilidad, carrera FROM usuarios WHERE id = ?`,
+    [usuarioId]
+  );
+  if (!usuario) return;
 
-io.on('connection', (socket) => {
-    console.log(`Socket conectado: ${socket.id}`);
+  const semanaActual = obtenerSemanaISO();
 
-    socket.on('unirse', ({ nombre, sala }) => {
-        usuariosConectados[socket.id] = { nombre, sala };
-        socket.join(sala);
+  // Habilidades activas que NO son del propio usuario y el usuario NO está ya inscrito
+  const habilidades = await allQuery(
+    `SELECT h.*,
+            COALESCE(AVG(c.estrellas), 0) AS avg_rating,
+            COUNT(DISTINCT i.id) AS students_count
+     FROM habilidades h
+     LEFT JOIN calificaciones c ON c.habilidad_id = h.id
+     LEFT JOIN inscripciones i ON i.habilidad_id = h.id AND i.estado = 'activa'
+     WHERE h.activo = 1
+       AND h.usuario_id != ?
+       AND h.id NOT IN (
+             SELECT habilidad_id FROM inscripciones
+             WHERE usuario_id = ? AND estado = 'activa'
+           )
+     GROUP BY h.id`,
+    [usuarioId, usuarioId]
+  );
 
-        if (!historialMensajes[sala]) historialMensajes[sala] = [];
+  for (const hab of habilidades) {
+    // ¿Ya existe un match no rechazado de esta semana?
+    const existente = await getQuery(
+      `SELECT id, rechazado FROM matches
+       WHERE usuario_id = ? AND habilidad_id = ? AND semana = ?`,
+      [usuarioId, hab.id, semanaActual]
+    );
 
-        // Enviar historial solo al que acaba de entrar
-        socket.emit('historial', historialMensajes[sala]);
+    if (existente && existente.rechazado) continue; // el usuario lo rechazó
 
-        // Notificar a todos en la sala
-        io.to(sala).emit('usuarioConectado', {
-            nombre,
-            usuarios: obtenerUsuariosDeSala(sala)
-        });
+    const { percent, razon, tipo } = calcularMatch(usuario, hab);
 
-        console.log(`${nombre} se unió a la sala: ${sala}`);
+    if (percent < 30) continue; // descartamos matches muy bajos
+
+    if (existente) {
+      // Actualizar si ya existe
+      await runQuery(
+        `UPDATE matches SET match_percent = ?, razon = ?, tipo = ? WHERE id = ?`,
+        [percent, razon, tipo, existente.id]
+      );
+    } else {
+      await runQuery(
+        `INSERT INTO matches (usuario_id, habilidad_id, tipo, match_percent, razon, semana)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [usuarioId, hab.id, tipo, percent, razon, semanaActual]
+      );
+    }
+  }
+
+  // User-matches: recomendar otros usuarios
+  const otrosUsuarios = await allQuery(
+    `SELECT id, intereses, disponibilidad, carrera,
+            nombres, apellido_paterno, apellido_materno
+     FROM usuarios WHERE id != ? AND id > 0`,
+    [usuarioId]
+  );
+
+  for (const otro of otrosUsuarios) {
+    const existente = await getQuery(
+      `SELECT id, rechazado FROM user_matches
+       WHERE usuario_id = ? AND usuario_match_id = ? AND semana = ?`,
+      [usuarioId, otro.id, semanaActual]
+    );
+
+    if (existente && existente.rechazado) continue;
+
+    const compat = calcularCompatibilidadUsuarios(usuario, otro);
+    if (compat < 30) continue;
+
+    if (existente) {
+      await runQuery(
+        `UPDATE user_matches SET compatibilidad = ? WHERE id = ?`,
+        [compat, existente.id]
+      );
+    } else {
+      await runQuery(
+        `INSERT INTO user_matches (usuario_id, usuario_match_id, compatibilidad, semana)
+         VALUES (?, ?, ?, ?)`,
+        [usuarioId, otro.id, compat, semanaActual]
+      );
+    }
+  }
+}
+
+function obtenerSemanaISO() {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(
+    ((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7
+  );
+  return `${now.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+// ── Icono por categoría ───────────────────────────────────────────
+const ICONOS = {
+  math: "∑",
+  programacion: "</>",
+  programming: "</>",
+  physics: "λ",
+  chemistry: "⚗",
+  language: "A",
+  writing: "✎",
+  general: "•",
+};
+
+function iconoCategoria(cat) {
+  return ICONOS[String(cat || "").toLowerCase()] || "•";
+}
+
+function colorUsuario(id) {
+  const colores = ["blue", "purple", "teal"];
+  return colores[id % colores.length];
+}
+
+// ── SOCKET.IO — Mensajería en tiempo real con persistencia ────────
+const usuariosConectados = {};
+
+io.on("connection", (socket) => {
+  socket.on("unirse", async ({ nombre, sala }) => {
+    usuariosConectados[socket.id] = { nombre, sala, usuarioId: null };
+    socket.join(sala);
+
+    // Obtener o crear sala en BD
+    let salaRow = await getQuery(
+      "SELECT id FROM chat_salas WHERE nombre = ?",
+      [sala]
+    ).catch(() => null);
+
+    if (!salaRow) {
+      const res = await runQuery(
+        "INSERT INTO chat_salas (nombre, descripcion) VALUES (?, ?)",
+        [sala, sala]
+      ).catch(() => null);
+      if (res) salaRow = { id: res.lastID };
+    }
+
+    if (salaRow) {
+      usuariosConectados[socket.id].salaId = salaRow.id;
+
+      // Historial de la BD (últimos 100 mensajes)
+      const historial = await allQuery(
+        `SELECT nombre_usuario AS nombre, texto, 
+                strftime('%H:%M', creado_en, 'localtime') AS hora
+         FROM chat_mensajes
+         WHERE sala_id = ?
+         ORDER BY id DESC LIMIT 100`,
+        [salaRow.id]
+      ).catch(() => []);
+
+      socket.emit("historial", historial.reverse());
+    }
+
+    io.to(sala).emit("usuarioConectado", {
+      nombre,
+      usuarios: obtenerUsuariosDeSala(sala),
     });
+  });
 
-    socket.on('mensaje', ({ texto }) => {
-        const usuario = usuariosConectados[socket.id];
-        if (!usuario) return;
+  socket.on("mensaje", async ({ texto }) => {
+    const usuario = usuariosConectados[socket.id];
+    if (!usuario) return;
 
-        const mensaje = {
-            id: Date.now(),
-            nombre: usuario.nombre,
-            texto,
-            hora: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-            socketId: socket.id
-        };
+    const mensaje = {
+      id: Date.now(),
+      nombre: usuario.nombre,
+      texto,
+      hora: new Date().toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
 
-        // Guardar en historial (máx 100 por sala)
-        historialMensajes[usuario.sala].push(mensaje);
-        if (historialMensajes[usuario.sala].length > 100) historialMensajes[usuario.sala].shift();
+    // Persistir en BD
+    if (usuario.salaId) {
+      await runQuery(
+        `INSERT INTO chat_mensajes (sala_id, nombre_usuario, texto) VALUES (?, ?, ?)`,
+        [usuario.salaId, usuario.nombre, texto]
+      ).catch(console.error);
+    }
 
-        io.to(usuario.sala).emit('nuevoMensaje', mensaje);
-    });
+    io.to(usuario.sala).emit("nuevoMensaje", mensaje);
+  });
 
-    socket.on('escribiendo', () => {
-        const usuario = usuariosConectados[socket.id];
-        if (!usuario) return;
-        socket.to(usuario.sala).emit('usuarioEscribiendo', { nombre: usuario.nombre });
-    });
+  socket.on("escribiendo", () => {
+    const u = usuariosConectados[socket.id];
+    if (u) socket.to(u.sala).emit("usuarioEscribiendo", { nombre: u.nombre });
+  });
 
-    socket.on('dejoDeEscribir', () => {
-        const usuario = usuariosConectados[socket.id];
-        if (!usuario) return;
-        socket.to(usuario.sala).emit('usuarioDejoDeEscribir');
-    });
+  socket.on("dejoDeEscribir", () => {
+    const u = usuariosConectados[socket.id];
+    if (u) socket.to(u.sala).emit("usuarioDejoDeEscribir");
+  });
 
-    socket.on('disconnect', () => {
-        const usuario = usuariosConectados[socket.id];
-        if (usuario) {
-            delete usuariosConectados[socket.id];
-            io.to(usuario.sala).emit('usuarioDesconectado', {
-                nombre: usuario.nombre,
-                usuarios: obtenerUsuariosDeSala(usuario.sala)
-            });
-            console.log(`${usuario.nombre} se desconectó`);
-        }
-    });
+  socket.on("disconnect", () => {
+    const u = usuariosConectados[socket.id];
+    if (u) {
+      delete usuariosConectados[socket.id];
+      io.to(u.sala).emit("usuarioDesconectado", {
+        nombre: u.nombre,
+        usuarios: obtenerUsuariosDeSala(u.sala),
+      });
+    }
+  });
 });
 
 function obtenerUsuariosDeSala(sala) {
-    return Object.entries(usuariosConectados)
-        .filter(([, u]) => u.sala === sala)
-        .map(([socketId, u]) => ({ socketId, nombre: u.nombre }));
+  return Object.entries(usuariosConectados)
+    .filter(([, u]) => u.sala === sala)
+    .map(([socketId, u]) => ({ socketId, nombre: u.nombre }));
 }
-// ══════════════════════════════════════════════
 
-// Rutas
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'index.html'));
-});
+// ── RUTAS ESTÁTICAS ───────────────────────────────────────────────
+app.get("/", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/index.html"))
+);
+app.get("/registrar", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/registrar.html"))
+);
+app.get("/RecContrasena", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/RecContrasena.html"))
+);
+app.get("/reset-password/:token", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/reset.html"))
+);
+app.get("/dashboard", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/dashboard.html"))
+);
+app.get("/perfil", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/perfil.html"))
+);
+app.get("/mensajeria", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/mensajeria.html"))
+);
+app.get("/notificaciones", (req, res) =>
+  res.sendFile(path.join(__dirname, "public/pages/notificaciones.html"))
+);
 
-app.get('/registrar', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'registrar.html'));
-});
-
-app.get('/RecContrasena', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'RecContrasena.html'));
-});
-
-app.get('/reset-password/:token', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'reset.html'));
-});
-
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
-});
-
-app.get('/perfil', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'perfil.html'));
-});
-
-app.get('/mensajeria', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'mensajeria.html'));
-});
-
-app.get('/notificaciones', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pages', 'notificaciones.html'));
-});
-
-// REGISTRO
+// ── AUTH ──────────────────────────────────────────────────────────
 app.post("/registrar", async (req, res) => {
-    const { nombres, apellidoPaterno, apellidoMaterno, matricula, carrera, correo, intereses, disponibilidad, password } = req.body;
-    try {
-        if (!nombres || !apellidoPaterno || !correo || !password) {
-            return res.status(400).json({ message: 'Faltan campos obligatorios.' });
-        }
-        if (!isValidEmail(correo)) {
-            return res.status(400).json({ message: 'Correo inválido.' });
-        }
-        if (!isValidPassword(password)) {
-            return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
-        }
-        const existingUser = await getQuery('SELECT id FROM usuarios WHERE lower(correo) = lower(?)', [correo]);
-        if (existingUser) {
-            return res.status(409).json({ message: 'El correo ya está registrado.' });
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await runQuery(
-            `INSERT INTO usuarios (nombres, apellido_paterno, apellido_materno, matricula, carrera, correo, intereses, disponibilidad, password)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [nombres, apellidoPaterno, apellidoMaterno, matricula, carrera, correo, intereses, disponibilidad, hashedPassword]
-        );
-        return res.status(201).json({ message: 'Usuario registrado correctamente.' });
-    } catch (error) {
-        console.error('Error en registro:', error);
-        return res.status(500).json({ message: 'No fue posible completar el registro.' });
+  const {
+    nombres, apellidoPaterno, apellidoMaterno,
+    matricula, carrera, correo, intereses, disponibilidad, password,
+  } = req.body;
+  try {
+    if (!nombres || !apellidoPaterno || !correo || !password)
+      return res.status(400).json({ message: "Faltan campos obligatorios." });
+    if (!isValidEmail(correo))
+      return res.status(400).json({ message: "Correo inválido." });
+    if (!isValidPassword(password))
+      return res
+        .status(400)
+        .json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+
+    const existe = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [correo]
+    );
+    if (existe)
+      return res.status(409).json({ message: "El correo ya está registrado." });
+
+    const hash = await bcrypt.hash(password, 10);
+    const result = await runQuery(
+      `INSERT INTO usuarios
+         (nombres, apellido_paterno, apellido_materno, matricula, carrera,
+          correo, intereses, disponibilidad, password)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nombres, apellidoPaterno, apellidoMaterno, matricula, carrera,
+        correo, intereses, disponibilidad, hash]
+    );
+
+    // Generar matches iniciales
+    if (result.lastID) {
+      generarMatchesUsuario(result.lastID).catch(console.error);
     }
+
+    return res.status(201).json({ message: "Usuario registrado correctamente." });
+  } catch (err) {
+    console.error("Error en registro:", err);
+    return res.status(500).json({ message: "No fue posible completar el registro." });
+  }
 });
 
-app.post('/login', (req, res) => {
-    const correo = typeof req.body.correo === 'string'
-        ? req.body.correo.trim().toLowerCase()
-        : typeof req.body.email === 'string'
-            ? req.body.email.trim().toLowerCase()
-            : '';
-    const password = typeof req.body.password === 'string' ? req.body.password : '';
+app.post("/login", async (req, res) => {
+  const correo =
+    typeof req.body.correo === "string"
+      ? req.body.correo.trim().toLowerCase()
+      : typeof req.body.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+  const password = typeof req.body.password === "string" ? req.body.password : "";
 
-    if (!correo || !password) {
-        return res.status(400).json({ message: 'Correo y contraseña son obligatorios.' });
+  if (!correo || !password)
+    return res.status(400).json({ message: "Correo y contraseña son obligatorios." });
+
+  try {
+    const row = await getQuery("SELECT * FROM usuarios WHERE lower(correo) = ?", [correo]);
+    if (!row) return res.status(401).json({ message: "Usuario no encontrado." });
+
+    // Control de bloqueo por intentos fallidos
+    if (row.bloqueado_hasta && Date.now() < row.bloqueado_hasta) {
+      const restante = Math.ceil((row.bloqueado_hasta - Date.now()) / 60000);
+      return res.status(429).json({
+        message: `Cuenta bloqueada temporalmente. Intenta en ${restante} min.`,
+      });
     }
 
-    db.get('SELECT * FROM usuarios WHERE correo = ?', [correo], async (err, row) => {
-        if (err) return res.status(500).json({ message: 'Error en el servidor' });
-        if (!row) return res.status(401).json({ message: 'Usuario no encontrado' });
-        const match = await bcrypt.compare(password, row.password);
-        if (!match) return res.status(401).json({ message: 'Contraseña incorrecta' });
-        res.status(200).json({
-            message: 'Login exitoso',
-            user: formatUserProfile(row)
+    const match = await bcrypt.compare(password, row.password);
+    if (!match) {
+      const intentos = (row.intentos_fallidos || 0) + 1;
+      if (intentos >= MAX_LOGIN_ATTEMPTS) {
+        const hasta = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+        await runQuery(
+          "UPDATE usuarios SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE id = ?",
+          [intentos, hasta, row.id]
+        );
+        return res.status(429).json({
+          message: `Demasiados intentos. Cuenta bloqueada por ${LOCKOUT_MINUTES} minutos.`,
         });
+      }
+      await runQuery(
+        "UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?",
+        [intentos, row.id]
+      );
+      return res.status(401).json({
+        message: `Contraseña incorrecta. Intentos restantes: ${MAX_LOGIN_ATTEMPTS - intentos}.`,
+      });
+    }
+
+    // Login exitoso
+    await runQuery(
+      "UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?",
+      [row.id]
+    );
+
+    // Actualizar matches en background
+    generarMatchesUsuario(row.id).catch(console.error);
+
+    return res.status(200).json({
+      message: "Login exitoso",
+      user: formatUserProfile(row),
     });
+  } catch (err) {
+    console.error("Error en login:", err);
+    return res.status(500).json({ message: "Error en el servidor." });
+  }
 });
 
-app.post('/api/recuperar', async (req, res) => {
-    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    if (!email) return res.status(400).json({ message: 'El correo es obligatorio.' });
-    if (!isValidEmail(email)) return res.status(400).json({ message: 'Ingresa un correo valido.' });
-    try {
-        const user = await getQuery('SELECT id, correo FROM usuarios WHERE lower(correo) = lower(?)', [email]);
-        if (!user) return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetExp = Date.now() + RESET_TOKEN_MINUTES * 60 * 1000;
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const resetLink = `${baseUrl}/reset-password/${resetToken}`;
-        await runQuery('UPDATE usuarios SET reset_token = ?, reset_exp = ? WHERE id = ?', [resetToken, resetExp, user.id]);
-        await sendResetEmail(user.correo, resetLink);
-        return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
-    } catch (error) {
-        console.error('Error en recuperacion de contraseña:', error);
-        return res.status(500).json({ message: 'No fue posible procesar la solicitud.' });
+app.post("/api/recuperar", async (req, res) => {
+  const email =
+    typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
+  if (!isValidEmail(email))
+    return res.status(400).json({ message: "Ingresa un correo válido." });
+  try {
+    const user = await getQuery(
+      "SELECT id, correo FROM usuarios WHERE lower(correo) = ?",
+      [email]
+    );
+    if (!user) return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetExp = Date.now() + RESET_TOKEN_MINUTES * 60 * 1000;
+    const resetLink = `${req.protocol}://${req.get("host")}/reset-password/${resetToken}`;
+
+    await runQuery(
+      "UPDATE usuarios SET reset_token = ?, reset_exp = ? WHERE id = ?",
+      [resetToken, resetExp, user.id]
+    );
+    await sendResetEmail(user.correo, resetLink);
+    return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+  } catch (err) {
+    console.error("Error en recuperación:", err);
+    return res.status(500).json({ message: "No fue posible procesar la solicitud." });
+  }
+});
+
+app.post("/api/reset-password", async (req, res) => {
+  const token = typeof req.body.token === "string" ? req.body.token.trim() : "";
+  const password = typeof req.body.password === "string" ? req.body.password : "";
+  if (!token)
+    return res.status(400).json({ success: false, message: "Token inválido o faltante." });
+  if (!isValidPassword(password))
+    return res
+      .status(400)
+      .json({ success: false, message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+  try {
+    const user = await getQuery(
+      "SELECT id, reset_exp FROM usuarios WHERE reset_token = ?",
+      [token]
+    );
+    if (!user)
+      return res.status(400).json({ success: false, message: "El enlace no es válido." });
+    if (!user.reset_exp || Number(user.reset_exp) < Date.now()) {
+      await runQuery(
+        "UPDATE usuarios SET reset_token = NULL, reset_exp = NULL WHERE id = ?",
+        [user.id]
+      );
+      return res.status(400).json({ success: false, message: "El enlace ha expirado." });
     }
+    const hash = await bcrypt.hash(password, 10);
+    await runQuery(
+      "UPDATE usuarios SET password = ?, reset_token = NULL, reset_exp = NULL WHERE id = ?",
+      [hash, user.id]
+    );
+    return res.status(200).json({ success: true, message: "Contraseña actualizada." });
+  } catch (err) {
+    console.error("Error en reset:", err);
+    return res.status(500).json({ success: false, message: "No fue posible actualizar la contraseña." });
+  }
 });
 
-app.post('/api/reset-password', async (req, res) => {
-    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
-    const password = typeof req.body.password === 'string' ? req.body.password : '';
-    if (!token) return res.status(400).json({ success: false, message: 'Token invalido o faltante.' });
-    if (!isValidPassword(password)) return res.status(400).json({ success: false, message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
-    try {
-        const user = await getQuery('SELECT id, reset_exp FROM usuarios WHERE reset_token = ?', [token]);
-        if (!user) return res.status(400).json({ success: false, message: 'El enlace no es valido.' });
-        if (!user.reset_exp || Number(user.reset_exp) < Date.now()) {
-            await runQuery('UPDATE usuarios SET reset_token = NULL, reset_exp = NULL WHERE id = ?', [user.id]);
-            return res.status(400).json({ success: false, message: 'El enlace ha expirado.' });
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await runQuery('UPDATE usuarios SET password = ?, reset_token = NULL, reset_exp = NULL WHERE id = ?', [hashedPassword, user.id]);
-        return res.status(200).json({ success: true, message: 'Contraseña actualizada' });
-    } catch (error) {
-        console.error('Error al actualizar contraseña:', error);
-        return res.status(500).json({ success: false, message: 'No fue posible actualizar la contraseña.' });
+// ── DASHBOARD — DATOS DINÁMICOS ───────────────────────────────────
+app.get("/api/dashboard", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+
+  try {
+    let usuario = null;
+    if (email) {
+      usuario = await getQuery(
+        "SELECT id, intereses, disponibilidad FROM usuarios WHERE lower(correo) = ?",
+        [email]
+      );
     }
-});
 
-app.get('/api/dashboard', async (req, res) => {
-    try {
-        const [recommendedMatches, scheduleMatches, userMatches] = await Promise.all([
-            allQuery(`SELECT id, title, instructor, reason, rating, students_count, level, schedule, match_percent, category, icon FROM dashboard_matches WHERE section = 'recommended' ORDER BY match_percent DESC, id DESC`),
-            allQuery(`SELECT id, title, instructor, reason, rating, students_count, level, schedule, match_percent, category, icon FROM dashboard_matches WHERE section = 'schedule' ORDER BY match_percent DESC, id DESC`),
-            allQuery(`SELECT id, name, career, teaches, learns, compatibility, tag_primary, tag_secondary, color FROM dashboard_user_matches ORDER BY compatibility DESC, id DESC`)
-        ]);
-        const allCompatibilities = [
-            ...recommendedMatches.map((item) => Number(item.match_percent) || 0),
-            ...scheduleMatches.map((item) => Number(item.match_percent) || 0),
-            ...userMatches.map((item) => Number(item.compatibility) || 0)
-        ].filter((value) => value > 0);
-        const averageCompatibility = allCompatibilities.length
-            ? Math.round(allCompatibilities.reduce((sum, value) => sum + value, 0) / allCompatibilities.length)
-            : 0;
-        return res.json({
-            summary: { newMatches: recommendedMatches.length, averageCompatibility },
-            recommendedMatches, scheduleMatches, userMatches
-        });
-    } catch (error) {
-        console.error('Error cargando dashboard:', error);
-        return res.status(500).json({ message: 'No fue posible cargar la informacion del dashboard.' });
+    // Si hay usuario, usamos sus matches personalizados
+    if (usuario) {
+      const semana = obtenerSemanaISO();
+
+      // Matches de cursos recomendados
+      const recommended = await allQuery(
+        `SELECT h.id, h.titulo AS title, h.categoria AS category, h.nivel AS level,
+                h.horario_dia || ' · ' || h.horario_hora_inicio || '-' || h.horario_hora_fin AS schedule,
+                h.icono AS icon,
+                u.nombres || ' ' || u.apellido_paterno AS instructor,
+                COALESCE(AVG(cal.estrellas), 0) AS rating,
+                COUNT(DISTINCT ins.id) AS students_count,
+                m.match_percent, m.razon AS reason
+         FROM matches m
+         JOIN habilidades h ON h.id = m.habilidad_id
+         JOIN usuarios u ON u.id = h.usuario_id
+         LEFT JOIN calificaciones cal ON cal.habilidad_id = h.id
+         LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
+         WHERE m.usuario_id = ? AND m.tipo = 'recommended' AND m.rechazado = 0
+           AND m.semana = ? AND h.activo = 1
+         GROUP BY h.id
+         ORDER BY m.match_percent DESC
+         LIMIT 6`,
+        [usuario.id, semana]
+      );
+
+      const schedule = await allQuery(
+        `SELECT h.id, h.titulo AS title, h.categoria AS category, h.nivel AS level,
+                h.horario_dia || ' · ' || h.horario_hora_inicio || '-' || h.horario_hora_fin AS schedule,
+                h.icono AS icon,
+                u.nombres || ' ' || u.apellido_paterno AS instructor,
+                COALESCE(AVG(cal.estrellas), 0) AS rating,
+                COUNT(DISTINCT ins.id) AS students_count,
+                m.match_percent, m.razon AS reason
+         FROM matches m
+         JOIN habilidades h ON h.id = m.habilidad_id
+         JOIN usuarios u ON u.id = h.usuario_id
+         LEFT JOIN calificaciones cal ON cal.habilidad_id = h.id
+         LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
+         WHERE m.usuario_id = ? AND m.tipo = 'schedule' AND m.rechazado = 0
+           AND m.semana = ? AND h.activo = 1
+         GROUP BY h.id
+         ORDER BY m.match_percent DESC
+         LIMIT 6`,
+        [usuario.id, semana]
+      );
+
+      const userMatches = await allQuery(
+        `SELECT u2.id, u2.nombres || ' ' || u2.apellido_paterno AS name,
+                u2.carrera AS career, u2.intereses,
+                um.compatibilidad AS compatibility,
+                (SELECT h.categoria FROM habilidades h WHERE h.usuario_id = u2.id AND h.activo = 1 LIMIT 1) AS teaches,
+                NULL AS learns
+         FROM user_matches um
+         JOIN usuarios u2 ON u2.id = um.usuario_match_id
+         WHERE um.usuario_id = ? AND um.rechazado = 0 AND um.semana = ?
+         ORDER BY um.compatibilidad DESC
+         LIMIT 8`,
+        [usuario.id, semana]
+      );
+
+      // Enriquecer user_matches
+      const enriched = userMatches.map((u) => ({
+        ...u,
+        tag_primary: u.teaches || "Habilidad",
+        tag_secondary: u.career ? u.career.split(" ")[0] : "Estudiante",
+        color: colorUsuario(u.id),
+        teaches: u.teaches || "Por definir",
+        learns: "Por definir",
+      }));
+
+      const allPct = [
+        ...recommended.map((r) => r.match_percent),
+        ...schedule.map((r) => r.match_percent),
+        ...userMatches.map((u) => u.compatibility),
+      ].filter(Boolean);
+      const avgCompat = allPct.length
+        ? Math.round(allPct.reduce((a, b) => a + b, 0) / allPct.length)
+        : 0;
+
+      // Normalizar campos para el frontend
+      const normalizeMatch = (m) => ({
+        ...m,
+        icon: m.icon || iconoCategoria(m.category),
+        rating: parseFloat(m.rating) || 0,
+        students_count: Number(m.students_count) || 0,
+        match_percent: Number(m.match_percent) || 0,
+        schedule: m.schedule?.includes("null") ? "Horario por confirmar" : (m.schedule || "Horario por confirmar"),
+      });
+
+      return res.json({
+        summary: { newMatches: recommended.length, averageCompatibility: avgCompat },
+        recommendedMatches: recommended.map(normalizeMatch),
+        scheduleMatches: schedule.map(normalizeMatch),
+        userMatches: enriched,
+      });
     }
+
+    // Fallback sin usuario: mostrar todas las habilidades públicas
+    const habilidades = await allQuery(
+      `SELECT h.id, h.titulo AS title, h.categoria AS category, h.nivel AS level,
+              h.horario_dia || ' · ' || h.horario_hora_inicio || '-' || h.horario_hora_fin AS schedule,
+              h.icono AS icon,
+              u.nombres || ' ' || u.apellido_paterno AS instructor,
+              COALESCE(AVG(cal.estrellas), 0) AS rating,
+              COUNT(DISTINCT ins.id) AS students_count,
+              0 AS match_percent, 'Habilidad disponible' AS reason
+       FROM habilidades h
+       JOIN usuarios u ON u.id = h.usuario_id
+       LEFT JOIN calificaciones cal ON cal.habilidad_id = h.id
+       LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
+       WHERE h.activo = 1
+       GROUP BY h.id
+       ORDER BY rating DESC
+       LIMIT 9`
+    );
+
+    return res.json({
+      summary: { newMatches: habilidades.length, averageCompatibility: 0 },
+      recommendedMatches: habilidades.slice(0, 3).map((h) => ({
+        ...h,
+        icon: h.icon || iconoCategoria(h.category),
+        rating: parseFloat(h.rating) || 0,
+        students_count: Number(h.students_count) || 0,
+        schedule: h.schedule?.includes("null") ? "Horario por confirmar" : (h.schedule || "Horario por confirmar"),
+      })),
+      scheduleMatches: habilidades.slice(3, 6).map((h) => ({
+        ...h,
+        icon: h.icon || iconoCategoria(h.category),
+        rating: parseFloat(h.rating) || 0,
+        students_count: Number(h.students_count) || 0,
+        schedule: h.schedule?.includes("null") ? "Horario por confirmar" : (h.schedule || "Horario por confirmar"),
+      })),
+      userMatches: [],
+    });
+  } catch (err) {
+    console.error("Error en dashboard:", err);
+    return res.status(500).json({ message: "No fue posible cargar el dashboard." });
+  }
 });
 
-app.get('/api/users/me', async (req, res) => {
-    const email = typeof req.query.email === 'string' ? req.query.email.trim().toLowerCase() : '';
-    if (!email) return res.status(400).json({ message: 'El correo es obligatorio.' });
-    try {
-        const user = await getUserByEmail(email);
-        if (!user) return res.status(404).json({ message: 'Usuario no encontrado.' });
-        return res.json({ user: formatUserProfile(user) });
-    } catch (error) {
-        console.error('Error consultando perfil:', error);
-        return res.status(500).json({ message: 'No fue posible cargar el perfil.' });
+// ── HABILIDADES (CRUD) ────────────────────────────────────────────
+app.get("/api/habilidades", async (req, res) => {
+  try {
+    const { email, categoria, nivel } = req.query;
+    let sql = `
+      SELECT h.*, u.nombres || ' ' || u.apellido_paterno AS instructor_nombre,
+             COALESCE(AVG(c.estrellas), 0) AS rating,
+             COUNT(DISTINCT i.id) AS students_count
+      FROM habilidades h
+      JOIN usuarios u ON u.id = h.usuario_id
+      LEFT JOIN calificaciones c ON c.habilidad_id = h.id
+      LEFT JOIN inscripciones i ON i.habilidad_id = h.id AND i.estado = 'activa'
+      WHERE h.activo = 1
+    `;
+    const params = [];
+    if (categoria && categoria !== "all") {
+      sql += " AND lower(h.categoria) = lower(?)";
+      params.push(categoria);
     }
-});
-
-app.put('/api/users/me', async (req, res) => {
-    const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    const fullName = typeof req.body.fullName === 'string' ? req.body.fullName.trim() : '';
-    const career = typeof req.body.career === 'string' ? req.body.career.trim() : '';
-    const interests = typeof req.body.interests === 'string' ? req.body.interests.trim() : '';
-    const availability = typeof req.body.availability === 'string' ? req.body.availability.trim() : '';
-    const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
-    const semesterValue = typeof req.body.semester === 'string' || typeof req.body.semester === 'number'
-        ? String(req.body.semester).trim() : '';
-    if (!email) return res.status(400).json({ message: 'El correo es obligatorio.' });
-    if (!fullName) return res.status(400).json({ message: 'El nombre completo es obligatorio.' });
-    const { nombres, apellidoPaterno, apellidoMaterno } = splitFullName(fullName);
-    const semester = semesterValue === '' ? null : Number(semesterValue);
-    if (!nombres || !apellidoPaterno) return res.status(400).json({ message: 'Ingresa al menos nombre y apellido paterno.' });
-    if (semesterValue !== '' && Number.isNaN(semester)) return res.status(400).json({ message: 'El semestre debe ser numerico.' });
-    try {
-        const existingUser = await getUserByEmail(email);
-        if (!existingUser) return res.status(404).json({ message: 'Usuario no encontrado.' });
-        await runQuery(
-            `UPDATE usuarios SET nombres = ?, apellido_paterno = ?, apellido_materno = ?, carrera = ?, intereses = ?, disponibilidad = ?, telefono = ?, semestre = ? WHERE id = ?`,
-            [nombres, apellidoPaterno, apellidoMaterno, career, interests, availability, phone, semester, existingUser.id]
-        );
-        const updatedUser = await getUserByEmail(email);
-        return res.json({ message: 'Perfil actualizado correctamente.', user: formatUserProfile(updatedUser) });
-    } catch (error) {
-        console.error('Error actualizando perfil:', error);
-        return res.status(500).json({ message: 'No fue posible actualizar el perfil.' });
+    if (nivel && nivel !== "all") {
+      sql += " AND lower(h.nivel) LIKE lower(?) || '%'";
+      params.push(nivel);
     }
+    sql += " GROUP BY h.id ORDER BY h.creado_en DESC";
+    const rows = await allQuery(sql, params);
+    return res.json({ habilidades: rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando habilidades." });
+  }
 });
 
-// IMPORTANTE: usar server.listen, NO app.listen (necesario para Socket.io)
-server.listen(port, () => {
-    console.log(`🚀 Server running at http://localhost:${port}`);
+app.post("/api/habilidades", async (req, res) => {
+  const {
+    email, titulo, descripcion, categoria, nivel,
+    horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos,
+  } = req.body;
+  try {
+    if (!email || !titulo)
+      return res.status(400).json({ message: "Email y título son obligatorios." });
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const icono = iconoCategoria(categoria);
+    const result = await runQuery(
+      `INSERT INTO habilidades
+         (usuario_id, titulo, descripcion, categoria, nivel,
+          horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos, icono)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [usuario.id, titulo, descripcion, categoria || "general", nivel || "Basico",
+        horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos || 10, icono]
+    );
+
+    // Regenerar matches de todos los usuarios
+    const todosUsuarios = await allQuery("SELECT id FROM usuarios");
+    for (const u of todosUsuarios) {
+      generarMatchesUsuario(u.id).catch(console.error);
+    }
+
+    return res.status(201).json({
+      message: "Habilidad creada correctamente.",
+      id: result.lastID,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error creando habilidad." });
+  }
+});
+
+app.delete("/api/habilidades/:id", async (req, res) => {
+  const { email } = req.body;
+  const id = parseInt(req.params.id, 10);
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(403).json({ message: "No autorizado." });
+
+    const hab = await getQuery(
+      "SELECT id FROM habilidades WHERE id = ? AND usuario_id = ?",
+      [id, usuario.id]
+    );
+    if (!hab)
+      return res.status(404).json({ message: "Habilidad no encontrada o no es tuya." });
+
+    await runQuery("UPDATE habilidades SET activo = 0 WHERE id = ?", [id]);
+    return res.json({ message: "Habilidad eliminada." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error eliminando habilidad." });
+  }
+});
+
+// ── INSCRIPCIONES ─────────────────────────────────────────────────
+app.post("/api/inscripciones", async (req, res) => {
+  const { email, habilidad_id } = req.body;
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const hab = await getQuery(
+      "SELECT id, max_alumnos FROM habilidades WHERE id = ? AND activo = 1",
+      [habilidad_id]
+    );
+    if (!hab) return res.status(404).json({ message: "Habilidad no encontrada." });
+
+    // Verificar cupo
+    const inscritos = await getQuery(
+      "SELECT COUNT(*) AS cnt FROM inscripciones WHERE habilidad_id = ? AND estado = 'activa'",
+      [habilidad_id]
+    );
+    if (inscritos.cnt >= hab.max_alumnos)
+      return res.status(409).json({ message: "La habilidad está llena." });
+
+    await runQuery(
+      "INSERT OR IGNORE INTO inscripciones (usuario_id, habilidad_id) VALUES (?, ?)",
+      [usuario.id, habilidad_id]
+    );
+    return res.status(201).json({ message: "Inscripción realizada." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error en inscripción." });
+  }
+});
+
+// ── SOLICITUDES ───────────────────────────────────────────────────
+app.post("/api/solicitudes", async (req, res) => {
+  const { de_email, para_email, mensaje } = req.body;
+  try {
+    const de = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [de_email]
+    );
+    const para = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [para_email]
+    );
+    if (!de || !para)
+      return res.status(404).json({ message: "Usuario(s) no encontrado(s)." });
+
+    // Si ambos se solicitan al mismo tiempo → aceptar automáticamente
+    const inversa = await getQuery(
+      `SELECT id FROM solicitudes
+       WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
+      [para.id, de.id]
+    );
+
+    if (inversa) {
+      await runQuery(
+        "UPDATE solicitudes SET estado = 'aceptada' WHERE id = ?",
+        [inversa.id]
+      );
+      await runQuery(
+        `INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje, estado)
+         VALUES (?, ?, ?, 'aceptada')`,
+        [de.id, para.id, mensaje]
+      );
+      // Notificar a ambos
+      await runQuery(
+        `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
+         VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`,
+        [de.id]
+      );
+      await runQuery(
+        `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
+         VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`,
+        [para.id]
+      );
+      return res.status(201).json({ message: "¡Coincidencia! Solicitud aceptada automáticamente.", estado: "aceptada" });
+    }
+
+    const result = await runQuery(
+      `INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje)
+       VALUES (?, ?, ?)`,
+      [de.id, para.id, mensaje]
+    );
+
+    // Notificar al destinatario
+    const nombreDe = await getQuery(
+      "SELECT nombres || ' ' || apellido_paterno AS nombre FROM usuarios WHERE id = ?",
+      [de.id]
+    );
+    await runQuery(
+      `INSERT INTO notificaciones (usuario_id, tipo, mensaje, datos_extra)
+       VALUES (?, 'solicitud', ?, ?)`,
+      [
+        para.id,
+        `${nombreDe?.nombre || "Alguien"} te envió una solicitud de intercambio`,
+        JSON.stringify({ solicitud_id: result.lastID, de_usuario_id: de.id }),
+      ]
+    );
+
+    return res.status(201).json({ message: "Solicitud enviada.", estado: "pendiente" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error enviando solicitud." });
+  }
+});
+
+app.put("/api/solicitudes/:id", async (req, res) => {
+  const { email, estado } = req.body;
+  const id = parseInt(req.params.id, 10);
+  if (!["aceptada", "rechazada", "cancelada"].includes(estado))
+    return res.status(400).json({ message: "Estado inválido." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(403).json({ message: "No autorizado." });
+
+    await runQuery("UPDATE solicitudes SET estado = ? WHERE id = ?", [estado, id]);
+    return res.json({ message: `Solicitud ${estado}.` });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error actualizando solicitud." });
+  }
+});
+
+// ── MATCHES — RECHAZAR ────────────────────────────────────────────
+app.post("/api/matches/rechazar", async (req, res) => {
+  const { email, habilidad_id, usuario_match_id } = req.body;
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    if (habilidad_id) {
+      await runQuery(
+        "UPDATE matches SET rechazado = 1 WHERE usuario_id = ? AND habilidad_id = ?",
+        [usuario.id, habilidad_id]
+      );
+    } else if (usuario_match_id) {
+      await runQuery(
+        "UPDATE user_matches SET rechazado = 1 WHERE usuario_id = ? AND usuario_match_id = ?",
+        [usuario.id, usuario_match_id]
+      );
+    }
+    return res.json({ message: "Match rechazado." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error rechazando match." });
+  }
+});
+
+// ── NOTIFICACIONES ────────────────────────────────────────────────
+app.get("/api/notificaciones", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const notifs = await allQuery(
+      `SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY creado_en DESC LIMIT 50`,
+      [usuario.id]
+    );
+    return res.json({ notificaciones: notifs });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando notificaciones." });
+  }
+});
+
+app.put("/api/notificaciones/leer", async (req, res) => {
+  const { email } = req.body;
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+      [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    await runQuery(
+      "UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?",
+      [usuario.id]
+    );
+    return res.json({ message: "Notificaciones marcadas como leídas." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error." });
+  }
+});
+
+// ── HISTORIAL DE MENSAJES por sala ────────────────────────────────
+app.get("/api/mensajes/:sala", async (req, res) => {
+  const { sala } = req.params;
+  const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+  try {
+    const salaRow = await getQuery(
+      "SELECT id FROM chat_salas WHERE nombre = ?",
+      [sala]
+    );
+    if (!salaRow) return res.json({ mensajes: [] });
+
+    const mensajes = await allQuery(
+      `SELECT nombre_usuario AS nombre, texto,
+              strftime('%H:%M', creado_en, 'localtime') AS hora,
+              creado_en
+       FROM chat_mensajes WHERE sala_id = ?
+       ORDER BY id DESC LIMIT ?`,
+      [salaRow.id, limit]
+    );
+    return res.json({ mensajes: mensajes.reverse() });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando mensajes." });
+  }
+});
+
+// ── USUARIO: GET & PUT ────────────────────────────────────────────
+app.get("/api/users/me", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
+  try {
+    const user = await getUserByEmail(email);
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado." });
+    return res.json({ user: formatUserProfile(user) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "No fue posible cargar el perfil." });
+  }
+});
+
+app.put("/api/users/me", async (req, res) => {
+  const email =
+    typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  const fullName =
+    typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
+  const career = typeof req.body.career === "string" ? req.body.career.trim() : "";
+  const interests =
+    typeof req.body.interests === "string" ? req.body.interests.trim() : "";
+  const availability =
+    typeof req.body.availability === "string" ? req.body.availability.trim() : "";
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+  const semesterVal =
+    typeof req.body.semester === "string" || typeof req.body.semester === "number"
+      ? String(req.body.semester).trim()
+      : "";
+
+  if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
+  if (!fullName)
+    return res.status(400).json({ message: "El nombre completo es obligatorio." });
+
+  const { nombres, apellidoPaterno, apellidoMaterno } = splitFullName(fullName);
+  const semester = semesterVal === "" ? null : Number(semesterVal);
+  if (!nombres || !apellidoPaterno)
+    return res
+      .status(400)
+      .json({ message: "Ingresa al menos nombre y apellido paterno." });
+  if (semesterVal !== "" && Number.isNaN(semester))
+    return res.status(400).json({ message: "El semestre debe ser numérico." });
+
+  try {
+    const existente = await getUserByEmail(email);
+    if (!existente) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    await runQuery(
+      `UPDATE usuarios
+         SET nombres = ?, apellido_paterno = ?, apellido_materno = ?,
+             carrera = ?, intereses = ?, disponibilidad = ?,
+             telefono = ?, semestre = ?
+       WHERE id = ?`,
+      [nombres, apellidoPaterno, apellidoMaterno,
+        career, interests, availability, phone, semester, existente.id]
+    );
+
+    // Regenerar matches con los nuevos intereses
+    generarMatchesUsuario(existente.id).catch(console.error);
+
+    const updatedUser = await getUserByEmail(email);
+    return res.json({
+      message: "Perfil actualizado correctamente.",
+      user: formatUserProfile(updatedUser),
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "No fue posible actualizar el perfil." });
+  }
+});
+
+// ── INICIAR SERVIDOR ──────────────────────────────────────────────
+server.listen(PORT, () => {
+  console.log(`🚀 SkillSwap corriendo en http://localhost:${PORT}`);
 });
