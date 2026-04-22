@@ -5,7 +5,7 @@ const { Server } = require("socket.io");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 const db = require("./db/database.js");
 const { calcularMatch, calcularCompatibilidadUsuarios } = require("./matching.js");
 
@@ -108,36 +108,74 @@ function isValidPassword(password) {
   return typeof password === "string" && password.length >= PASSWORD_MIN_LENGTH;
 }
 
-// ── Email helpers ─────────────────────────────────────────────────
-function getResetMailConfig() {
-  const { SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, GMAIL_USER } = process.env;
-  const fromEmail = SENDGRID_FROM_EMAIL || GMAIL_USER;
-  if (!SENDGRID_API_KEY || !fromEmail) return null;
-  sgMail.setApiKey(SENDGRID_API_KEY);
-  return { fromEmail };
+// ── Email helpers — nodemailer ────────────────────────────────────
+function crearTransporter() {
+  const { GMAIL_USER, GMAIL_APP_PASSWORD, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+
+  // Opción A: Gmail con App Password
+  if (GMAIL_USER && GMAIL_APP_PASSWORD) {
+    return nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+    });
+  }
+
+  // Opción B: SMTP genérico (Outlook, Yahoo, servidor propio…)
+  if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: parseInt(SMTP_PORT || "587"),
+      secure: SMTP_PORT === "465",
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
+  }
+
+  return null;
 }
 
 async function sendResetEmail(recipientEmail, resetLink) {
-  const mailConfig = getResetMailConfig();
-  if (!mailConfig) {
-    console.warn(`[DEV] Enlace de recuperación para ${recipientEmail}: ${resetLink}`);
+  const transporter = crearTransporter();
+
+  if (!transporter) {
+    // Sin configuración SMTP → modo desarrollo: enlace en consola
+    console.warn("\n⚠️  EMAIL NO CONFIGURADO — modo desarrollo");
+    console.warn("   Configura GMAIL_USER + GMAIL_APP_PASSWORD en tu .env");
+    console.warn(`   👉 Enlace de recuperación: ${resetLink}\n`);
     return;
   }
-  await sgMail.send({
+
+  const from = process.env.GMAIL_USER || process.env.SMTP_USER;
+
+  await transporter.sendMail({
+    from: `"SkillSwap" <${from}>`,
     to: recipientEmail,
-    from: { email: mailConfig.fromEmail, name: "SkillSwap" },
     subject: "Recupera tu contraseña de SkillSwap",
-    html: `<p>Haz clic aquí para restablecer tu contraseña:</p>
-           <a href="${resetLink}">Restablecer contraseña</a>
-           <p>Este enlace expirará en ${RESET_TOKEN_MINUTES} minutos.</p>`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;
+                  background:#f8fafc;border-radius:16px;border:1px solid #e2e8f0;">
+        <h2 style="color:#2563eb;margin:0 0 4px;">SkillSwap</h2>
+        <p style="color:#94a3b8;margin:0 0 24px;font-size:13px;">Plataforma de intercambio de habilidades</p>
+        <h3 style="color:#0f172a;margin:0 0 12px;">Recupera tu contraseña</h3>
+        <p style="color:#475569;margin:0 0 20px;line-height:1.6;">
+          Recibimos una solicitud para restablecer la contraseña de tu cuenta.
+          Haz clic en el botón de abajo. Este enlace expira en
+          <strong>${RESET_TOKEN_MINUTES} minutos</strong>.
+        </p>
+        <a href="${resetLink}"
+           style="display:inline-block;padding:14px 28px;background:#2563eb;color:#fff;
+                  border-radius:10px;text-decoration:none;font-weight:bold;font-size:15px;">
+          Restablecer contraseña
+        </a>
+        <p style="margin-top:28px;color:#94a3b8;font-size:13px;line-height:1.5;">
+          Si no solicitaste este cambio, ignora este correo. Tu contraseña no se modificará.
+        </p>
+      </div>
+    `,
   });
+  console.log(`✅ Correo de recuperación enviado a ${recipientEmail}`);
 }
 
 // ── MOTOR DE MATCHING ─────────────────────────────────────────────
-/**
- * Genera o actualiza los matches de UN usuario.
- * Se invoca al hacer login, al actualizar perfil y semanalmente (cron).
- */
 async function generarMatchesUsuario(usuarioId) {
   const usuario = await getQuery(
     `SELECT id, intereses, disponibilidad, carrera FROM usuarios WHERE id = ?`,
@@ -147,7 +185,6 @@ async function generarMatchesUsuario(usuarioId) {
 
   const semanaActual = obtenerSemanaISO();
 
-  // Habilidades activas que NO son del propio usuario y el usuario NO está ya inscrito
   const habilidades = await allQuery(
     `SELECT h.*,
             COALESCE(AVG(c.estrellas), 0) AS avg_rating,
@@ -166,21 +203,18 @@ async function generarMatchesUsuario(usuarioId) {
   );
 
   for (const hab of habilidades) {
-    // ¿Ya existe un match no rechazado de esta semana?
     const existente = await getQuery(
       `SELECT id, rechazado FROM matches
        WHERE usuario_id = ? AND habilidad_id = ? AND semana = ?`,
       [usuarioId, hab.id, semanaActual]
     );
 
-    if (existente && existente.rechazado) continue; // el usuario lo rechazó
+    if (existente && existente.rechazado) continue;
 
     const { percent, razon, tipo } = calcularMatch(usuario, hab);
-
-    if (percent < 30) continue; // descartamos matches muy bajos
+    if (percent < 30) continue;
 
     if (existente) {
-      // Actualizar si ya existe
       await runQuery(
         `UPDATE matches SET match_percent = ?, razon = ?, tipo = ? WHERE id = ?`,
         [percent, razon, tipo, existente.id]
@@ -194,7 +228,6 @@ async function generarMatchesUsuario(usuarioId) {
     }
   }
 
-  // User-matches: recomendar otros usuarios
   const otrosUsuarios = await allQuery(
     `SELECT id, intereses, disponibilidad, carrera,
             nombres, apellido_paterno, apellido_materno
@@ -238,16 +271,9 @@ function obtenerSemanaISO() {
   return `${now.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-// ── Icono por categoría ───────────────────────────────────────────
 const ICONOS = {
-  math: "∑",
-  programacion: "</>",
-  programming: "</>",
-  physics: "λ",
-  chemistry: "⚗",
-  language: "A",
-  writing: "✎",
-  general: "•",
+  math: "∑", programacion: "</>", programming: "</>",
+  physics: "λ", chemistry: "⚗", language: "A", writing: "✎", general: "•",
 };
 
 function iconoCategoria(cat) {
@@ -259,7 +285,7 @@ function colorUsuario(id) {
   return colores[id % colores.length];
 }
 
-// ── SOCKET.IO — Mensajería en tiempo real con persistencia ────────
+// ── SOCKET.IO ─────────────────────────────────────────────────────
 const usuariosConectados = {};
 
 io.on("connection", (socket) => {
@@ -267,64 +293,37 @@ io.on("connection", (socket) => {
     usuariosConectados[socket.id] = { nombre, sala, usuarioId: null };
     socket.join(sala);
 
-    // Obtener o crear sala en BD
-    let salaRow = await getQuery(
-      "SELECT id FROM chat_salas WHERE nombre = ?",
-      [sala]
-    ).catch(() => null);
-
+    let salaRow = await getQuery("SELECT id FROM chat_salas WHERE nombre = ?", [sala]).catch(() => null);
     if (!salaRow) {
-      const res = await runQuery(
-        "INSERT INTO chat_salas (nombre, descripcion) VALUES (?, ?)",
-        [sala, sala]
-      ).catch(() => null);
+      const res = await runQuery("INSERT INTO chat_salas (nombre, descripcion) VALUES (?, ?)", [sala, sala]).catch(() => null);
       if (res) salaRow = { id: res.lastID };
     }
 
     if (salaRow) {
       usuariosConectados[socket.id].salaId = salaRow.id;
-
-      // Historial de la BD (últimos 100 mensajes)
       const historial = await allQuery(
-        `SELECT nombre_usuario AS nombre, texto, 
+        `SELECT nombre_usuario AS nombre, texto,
                 strftime('%H:%M', creado_en, 'localtime') AS hora
-         FROM chat_mensajes
-         WHERE sala_id = ?
-         ORDER BY id DESC LIMIT 100`,
+         FROM chat_mensajes WHERE sala_id = ? ORDER BY id DESC LIMIT 100`,
         [salaRow.id]
       ).catch(() => []);
-
       socket.emit("historial", historial.reverse());
     }
 
-    io.to(sala).emit("usuarioConectado", {
-      nombre,
-      usuarios: obtenerUsuariosDeSala(sala),
-    });
+    io.to(sala).emit("usuarioConectado", { nombre, usuarios: obtenerUsuariosDeSala(sala) });
   });
 
   socket.on("mensaje", async ({ texto }) => {
     const usuario = usuariosConectados[socket.id];
     if (!usuario) return;
-
     const mensaje = {
-      id: Date.now(),
-      nombre: usuario.nombre,
-      texto,
-      hora: new Date().toLocaleTimeString("es-MX", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      id: Date.now(), nombre: usuario.nombre, texto,
+      hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
     };
-
-    // Persistir en BD
     if (usuario.salaId) {
-      await runQuery(
-        `INSERT INTO chat_mensajes (sala_id, nombre_usuario, texto) VALUES (?, ?, ?)`,
-        [usuario.salaId, usuario.nombre, texto]
-      ).catch(console.error);
+      await runQuery(`INSERT INTO chat_mensajes (sala_id, nombre_usuario, texto) VALUES (?, ?, ?)`,
+        [usuario.salaId, usuario.nombre, texto]).catch(console.error);
     }
-
     io.to(usuario.sala).emit("nuevoMensaje", mensaje);
   });
 
@@ -342,10 +341,7 @@ io.on("connection", (socket) => {
     const u = usuariosConectados[socket.id];
     if (u) {
       delete usuariosConectados[socket.id];
-      io.to(u.sala).emit("usuarioDesconectado", {
-        nombre: u.nombre,
-        usuarios: obtenerUsuariosDeSala(u.sala),
-      });
+      io.to(u.sala).emit("usuarioDesconectado", { nombre: u.nombre, usuarios: obtenerUsuariosDeSala(u.sala) });
     }
   });
 });
@@ -357,69 +353,36 @@ function obtenerUsuariosDeSala(sala) {
 }
 
 // ── RUTAS ESTÁTICAS ───────────────────────────────────────────────
-app.get("/", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/index.html"))
-);
-app.get("/registrar", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/registrar.html"))
-);
-app.get("/RecContrasena", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/RecContrasena.html"))
-);
-app.get("/reset-password/:token", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/reset.html"))
-);
-app.get("/dashboard", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/dashboard.html"))
-);
-app.get("/perfil", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/perfil.html"))
-);
-app.get("/mensajeria", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/mensajeria.html"))
-);
-app.get("/notificaciones", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/pages/notificaciones.html"))
-);
+app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public/pages/index.html")));
+app.get("/registrar", (req, res) => res.sendFile(path.join(__dirname, "public/pages/registrar.html")));
+app.get("/RecContrasena", (req, res) => res.sendFile(path.join(__dirname, "public/pages/RecContrasena.html")));
+app.get("/reset-password/:token", (req, res) => res.sendFile(path.join(__dirname, "public/pages/reset.html")));
+app.get("/dashboard", (req, res) => res.sendFile(path.join(__dirname, "public/pages/dashboard.html")));
+app.get("/perfil", (req, res) => res.sendFile(path.join(__dirname, "public/pages/perfil.html")));
+app.get("/mensajeria", (req, res) => res.sendFile(path.join(__dirname, "public/pages/mensajeria.html")));
+app.get("/notificaciones", (req, res) => res.sendFile(path.join(__dirname, "public/pages/notificaciones.html")));
 
 // ── AUTH ──────────────────────────────────────────────────────────
 app.post("/registrar", async (req, res) => {
-  const {
-    nombres, apellidoPaterno, apellidoMaterno,
-    matricula, carrera, correo, intereses, disponibilidad, password,
-  } = req.body;
+  const { nombres, apellidoPaterno, apellidoMaterno, matricula, carrera, correo, intereses, disponibilidad, password } = req.body;
   try {
     if (!nombres || !apellidoPaterno || !correo || !password)
       return res.status(400).json({ message: "Faltan campos obligatorios." });
     if (!isValidEmail(correo))
       return res.status(400).json({ message: "Correo inválido." });
     if (!isValidPassword(password))
-      return res
-        .status(400)
-        .json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+      return res.status(400).json({ message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
 
-    const existe = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [correo]
-    );
-    if (existe)
-      return res.status(409).json({ message: "El correo ya está registrado." });
+    const existe = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [correo]);
+    if (existe) return res.status(409).json({ message: "El correo ya está registrado." });
 
     const hash = await bcrypt.hash(password, 10);
     const result = await runQuery(
-      `INSERT INTO usuarios
-         (nombres, apellido_paterno, apellido_materno, matricula, carrera,
-          correo, intereses, disponibilidad, password)
+      `INSERT INTO usuarios (nombres, apellido_paterno, apellido_materno, matricula, carrera, correo, intereses, disponibilidad, password)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nombres, apellidoPaterno, apellidoMaterno, matricula, carrera,
-        correo, intereses, disponibilidad, hash]
+      [nombres, apellidoPaterno, apellidoMaterno, matricula, carrera, correo, intereses, disponibilidad, hash]
     );
-
-    // Generar matches iniciales
-    if (result.lastID) {
-      generarMatchesUsuario(result.lastID).catch(console.error);
-    }
-
+    if (result.lastID) generarMatchesUsuario(result.lastID).catch(console.error);
     return res.status(201).json({ message: "Usuario registrado correctamente." });
   } catch (err) {
     console.error("Error en registro:", err);
@@ -428,27 +391,19 @@ app.post("/registrar", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  const correo =
-    typeof req.body.correo === "string"
-      ? req.body.correo.trim().toLowerCase()
-      : typeof req.body.email === "string"
-      ? req.body.email.trim().toLowerCase()
-      : "";
+  const correo = typeof req.body.correo === "string" ? req.body.correo.trim().toLowerCase()
+    : typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
   const password = typeof req.body.password === "string" ? req.body.password : "";
 
-  if (!correo || !password)
-    return res.status(400).json({ message: "Correo y contraseña son obligatorios." });
+  if (!correo || !password) return res.status(400).json({ message: "Correo y contraseña son obligatorios." });
 
   try {
     const row = await getQuery("SELECT * FROM usuarios WHERE lower(correo) = ?", [correo]);
     if (!row) return res.status(401).json({ message: "Usuario no encontrado." });
 
-    // Control de bloqueo por intentos fallidos
     if (row.bloqueado_hasta && Date.now() < row.bloqueado_hasta) {
       const restante = Math.ceil((row.bloqueado_hasta - Date.now()) / 60000);
-      return res.status(429).json({
-        message: `Cuenta bloqueada temporalmente. Intenta en ${restante} min.`,
-      });
+      return res.status(429).json({ message: `Cuenta bloqueada temporalmente. Intenta en ${restante} min.` });
     }
 
     const match = await bcrypt.compare(password, row.password);
@@ -456,36 +411,17 @@ app.post("/login", async (req, res) => {
       const intentos = (row.intentos_fallidos || 0) + 1;
       if (intentos >= MAX_LOGIN_ATTEMPTS) {
         const hasta = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
-        await runQuery(
-          "UPDATE usuarios SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE id = ?",
-          [intentos, hasta, row.id]
-        );
-        return res.status(429).json({
-          message: `Demasiados intentos. Cuenta bloqueada por ${LOCKOUT_MINUTES} minutos.`,
-        });
+        await runQuery("UPDATE usuarios SET intentos_fallidos = ?, bloqueado_hasta = ? WHERE id = ?", [intentos, hasta, row.id]);
+        return res.status(429).json({ message: `Demasiados intentos. Cuenta bloqueada por ${LOCKOUT_MINUTES} minutos.` });
       }
-      await runQuery(
-        "UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?",
-        [intentos, row.id]
-      );
-      return res.status(401).json({
-        message: `Contraseña incorrecta. Intentos restantes: ${MAX_LOGIN_ATTEMPTS - intentos}.`,
-      });
+      await runQuery("UPDATE usuarios SET intentos_fallidos = ? WHERE id = ?", [intentos, row.id]);
+      return res.status(401).json({ message: `Contraseña incorrecta. Intentos restantes: ${MAX_LOGIN_ATTEMPTS - intentos}.` });
     }
 
-    // Login exitoso
-    await runQuery(
-      "UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?",
-      [row.id]
-    );
-
-    // Actualizar matches en background
+    await runQuery("UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id = ?", [row.id]);
     generarMatchesUsuario(row.id).catch(console.error);
 
-    return res.status(200).json({
-      message: "Login exitoso",
-      user: formatUserProfile(row),
-    });
+    return res.status(200).json({ message: "Login exitoso", user: formatUserProfile(row) });
   } catch (err) {
     console.error("Error en login:", err);
     return res.status(500).json({ message: "Error en el servidor." });
@@ -493,26 +429,18 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/api/recuperar", async (req, res) => {
-  const email =
-    typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
   if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
-  if (!isValidEmail(email))
-    return res.status(400).json({ message: "Ingresa un correo válido." });
+  if (!isValidEmail(email)) return res.status(400).json({ message: "Ingresa un correo válido." });
   try {
-    const user = await getQuery(
-      "SELECT id, correo FROM usuarios WHERE lower(correo) = ?",
-      [email]
-    );
+    const user = await getQuery("SELECT id, correo FROM usuarios WHERE lower(correo) = ?", [email]);
     if (!user) return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetExp = Date.now() + RESET_TOKEN_MINUTES * 60 * 1000;
     const resetLink = `${req.protocol}://${req.get("host")}/reset-password/${resetToken}`;
 
-    await runQuery(
-      "UPDATE usuarios SET reset_token = ?, reset_exp = ? WHERE id = ?",
-      [resetToken, resetExp, user.id]
-    );
+    await runQuery("UPDATE usuarios SET reset_token = ?, reset_exp = ? WHERE id = ?", [resetToken, resetExp, user.id]);
     await sendResetEmail(user.correo, resetLink);
     return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
   } catch (err) {
@@ -524,31 +452,18 @@ app.post("/api/recuperar", async (req, res) => {
 app.post("/api/reset-password", async (req, res) => {
   const token = typeof req.body.token === "string" ? req.body.token.trim() : "";
   const password = typeof req.body.password === "string" ? req.body.password : "";
-  if (!token)
-    return res.status(400).json({ success: false, message: "Token inválido o faltante." });
+  if (!token) return res.status(400).json({ success: false, message: "Token inválido o faltante." });
   if (!isValidPassword(password))
-    return res
-      .status(400)
-      .json({ success: false, message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
+    return res.status(400).json({ success: false, message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.` });
   try {
-    const user = await getQuery(
-      "SELECT id, reset_exp FROM usuarios WHERE reset_token = ?",
-      [token]
-    );
-    if (!user)
-      return res.status(400).json({ success: false, message: "El enlace no es válido." });
+    const user = await getQuery("SELECT id, reset_exp FROM usuarios WHERE reset_token = ?", [token]);
+    if (!user) return res.status(400).json({ success: false, message: "El enlace no es válido." });
     if (!user.reset_exp || Number(user.reset_exp) < Date.now()) {
-      await runQuery(
-        "UPDATE usuarios SET reset_token = NULL, reset_exp = NULL WHERE id = ?",
-        [user.id]
-      );
+      await runQuery("UPDATE usuarios SET reset_token = NULL, reset_exp = NULL WHERE id = ?", [user.id]);
       return res.status(400).json({ success: false, message: "El enlace ha expirado." });
     }
     const hash = await bcrypt.hash(password, 10);
-    await runQuery(
-      "UPDATE usuarios SET password = ?, reset_token = NULL, reset_exp = NULL WHERE id = ?",
-      [hash, user.id]
-    );
+    await runQuery("UPDATE usuarios SET password = ?, reset_token = NULL, reset_exp = NULL WHERE id = ?", [hash, user.id]);
     return res.status(200).json({ success: true, message: "Contraseña actualizada." });
   } catch (err) {
     console.error("Error en reset:", err);
@@ -556,25 +471,19 @@ app.post("/api/reset-password", async (req, res) => {
   }
 });
 
-// ── DASHBOARD — DATOS DINÁMICOS ───────────────────────────────────
+// ── DASHBOARD ─────────────────────────────────────────────────────
 app.get("/api/dashboard", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
 
   try {
     let usuario = null;
     if (email) {
-      usuario = await getQuery(
-        "SELECT id, intereses, disponibilidad FROM usuarios WHERE lower(correo) = ?",
-        [email]
-      );
+      usuario = await getQuery("SELECT id, intereses, disponibilidad FROM usuarios WHERE lower(correo) = ?", [email]);
     }
 
-    // Si hay usuario, usamos sus matches personalizados
     if (usuario) {
       const semana = obtenerSemanaISO();
 
-      // Matches de cursos recomendados
       const recommended = await allQuery(
         `SELECT h.id, h.titulo AS title, h.categoria AS category, h.nivel AS level,
                 h.horario_dia || ' · ' || h.horario_hora_inicio || '-' || h.horario_hora_fin AS schedule,
@@ -590,9 +499,7 @@ app.get("/api/dashboard", async (req, res) => {
          LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
          WHERE m.usuario_id = ? AND m.tipo = 'recommended' AND m.rechazado = 0
            AND m.semana = ? AND h.activo = 1
-         GROUP BY h.id
-         ORDER BY m.match_percent DESC
-         LIMIT 6`,
+         GROUP BY h.id ORDER BY m.match_percent DESC LIMIT 6`,
         [usuario.id, semana]
       );
 
@@ -611,9 +518,7 @@ app.get("/api/dashboard", async (req, res) => {
          LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
          WHERE m.usuario_id = ? AND m.tipo = 'schedule' AND m.rechazado = 0
            AND m.semana = ? AND h.activo = 1
-         GROUP BY h.id
-         ORDER BY m.match_percent DESC
-         LIMIT 6`,
+         GROUP BY h.id ORDER BY m.match_percent DESC LIMIT 6`,
         [usuario.id, semana]
       );
 
@@ -626,12 +531,10 @@ app.get("/api/dashboard", async (req, res) => {
          FROM user_matches um
          JOIN usuarios u2 ON u2.id = um.usuario_match_id
          WHERE um.usuario_id = ? AND um.rechazado = 0 AND um.semana = ?
-         ORDER BY um.compatibilidad DESC
-         LIMIT 8`,
+         ORDER BY um.compatibilidad DESC LIMIT 8`,
         [usuario.id, semana]
       );
 
-      // Enriquecer user_matches
       const enriched = userMatches.map((u) => ({
         ...u,
         tag_primary: u.teaches || "Habilidad",
@@ -646,11 +549,8 @@ app.get("/api/dashboard", async (req, res) => {
         ...schedule.map((r) => r.match_percent),
         ...userMatches.map((u) => u.compatibility),
       ].filter(Boolean);
-      const avgCompat = allPct.length
-        ? Math.round(allPct.reduce((a, b) => a + b, 0) / allPct.length)
-        : 0;
+      const avgCompat = allPct.length ? Math.round(allPct.reduce((a, b) => a + b, 0) / allPct.length) : 0;
 
-      // Normalizar campos para el frontend
       const normalizeMatch = (m) => ({
         ...m,
         icon: m.icon || iconoCategoria(m.category),
@@ -668,7 +568,6 @@ app.get("/api/dashboard", async (req, res) => {
       });
     }
 
-    // Fallback sin usuario: mostrar todas las habilidades públicas
     const habilidades = await allQuery(
       `SELECT h.id, h.titulo AS title, h.categoria AS category, h.nivel AS level,
               h.horario_dia || ' · ' || h.horario_hora_inicio || '-' || h.horario_hora_fin AS schedule,
@@ -681,26 +580,19 @@ app.get("/api/dashboard", async (req, res) => {
        JOIN usuarios u ON u.id = h.usuario_id
        LEFT JOIN calificaciones cal ON cal.habilidad_id = h.id
        LEFT JOIN inscripciones ins ON ins.habilidad_id = h.id AND ins.estado = 'activa'
-       WHERE h.activo = 1
-       GROUP BY h.id
-       ORDER BY rating DESC
-       LIMIT 9`
+       WHERE h.activo = 1 GROUP BY h.id ORDER BY rating DESC LIMIT 9`
     );
 
     return res.json({
       summary: { newMatches: habilidades.length, averageCompatibility: 0 },
       recommendedMatches: habilidades.slice(0, 3).map((h) => ({
-        ...h,
-        icon: h.icon || iconoCategoria(h.category),
-        rating: parseFloat(h.rating) || 0,
-        students_count: Number(h.students_count) || 0,
+        ...h, icon: h.icon || iconoCategoria(h.category),
+        rating: parseFloat(h.rating) || 0, students_count: Number(h.students_count) || 0,
         schedule: h.schedule?.includes("null") ? "Horario por confirmar" : (h.schedule || "Horario por confirmar"),
       })),
       scheduleMatches: habilidades.slice(3, 6).map((h) => ({
-        ...h,
-        icon: h.icon || iconoCategoria(h.category),
-        rating: parseFloat(h.rating) || 0,
-        students_count: Number(h.students_count) || 0,
+        ...h, icon: h.icon || iconoCategoria(h.category),
+        rating: parseFloat(h.rating) || 0, students_count: Number(h.students_count) || 0,
         schedule: h.schedule?.includes("null") ? "Horario por confirmar" : (h.schedule || "Horario por confirmar"),
       })),
       userMatches: [],
@@ -726,14 +618,8 @@ app.get("/api/habilidades", async (req, res) => {
       WHERE h.activo = 1
     `;
     const params = [];
-    if (categoria && categoria !== "all") {
-      sql += " AND lower(h.categoria) = lower(?)";
-      params.push(categoria);
-    }
-    if (nivel && nivel !== "all") {
-      sql += " AND lower(h.nivel) LIKE lower(?) || '%'";
-      params.push(nivel);
-    }
+    if (categoria && categoria !== "all") { sql += " AND lower(h.categoria) = lower(?)"; params.push(categoria); }
+    if (nivel && nivel !== "all") { sql += " AND lower(h.nivel) LIKE lower(?) || '%'"; params.push(nivel); }
     sql += " GROUP BY h.id ORDER BY h.creado_en DESC";
     const rows = await allQuery(sql, params);
     return res.json({ habilidades: rows });
@@ -744,39 +630,23 @@ app.get("/api/habilidades", async (req, res) => {
 });
 
 app.post("/api/habilidades", async (req, res) => {
-  const {
-    email, titulo, descripcion, categoria, nivel,
-    horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos,
-  } = req.body;
+  const { email, titulo, descripcion, categoria, nivel, horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos } = req.body;
   try {
-    if (!email || !titulo)
-      return res.status(400).json({ message: "Email y título son obligatorios." });
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    if (!email || !titulo) return res.status(400).json({ message: "Email y título son obligatorios." });
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
 
     const icono = iconoCategoria(categoria);
     const result = await runQuery(
-      `INSERT INTO habilidades
-         (usuario_id, titulo, descripcion, categoria, nivel,
-          horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos, icono)
+      `INSERT INTO habilidades (usuario_id, titulo, descripcion, categoria, nivel, horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos, icono)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [usuario.id, titulo, descripcion, categoria || "general", nivel || "Basico",
-        horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos || 10, icono]
+      [usuario.id, titulo, descripcion, categoria || "general", nivel || "Basico", horario_dia, horario_hora_inicio, horario_hora_fin, max_alumnos || 10, icono]
     );
 
-    // Regenerar matches de todos los usuarios
     const todosUsuarios = await allQuery("SELECT id FROM usuarios");
-    for (const u of todosUsuarios) {
-      generarMatchesUsuario(u.id).catch(console.error);
-    }
+    for (const u of todosUsuarios) generarMatchesUsuario(u.id).catch(console.error);
 
-    return res.status(201).json({
-      message: "Habilidad creada correctamente.",
-      id: result.lastID,
-    });
+    return res.status(201).json({ message: "Habilidad creada correctamente.", id: result.lastID });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Error creando habilidad." });
@@ -787,19 +657,10 @@ app.delete("/api/habilidades/:id", async (req, res) => {
   const { email } = req.body;
   const id = parseInt(req.params.id, 10);
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(403).json({ message: "No autorizado." });
-
-    const hab = await getQuery(
-      "SELECT id FROM habilidades WHERE id = ? AND usuario_id = ?",
-      [id, usuario.id]
-    );
-    if (!hab)
-      return res.status(404).json({ message: "Habilidad no encontrada o no es tuya." });
-
+    const hab = await getQuery("SELECT id FROM habilidades WHERE id = ? AND usuario_id = ?", [id, usuario.id]);
+    if (!hab) return res.status(404).json({ message: "Habilidad no encontrada o no es tuya." });
     await runQuery("UPDATE habilidades SET activo = 0 WHERE id = ?", [id]);
     return res.json({ message: "Habilidad eliminada." });
   } catch (err) {
@@ -808,34 +669,111 @@ app.delete("/api/habilidades/:id", async (req, res) => {
   }
 });
 
+// ── ALUMNOS POR HABILIDAD (para el instructor) ────────────────────
+app.get("/api/habilidades/:id/alumnos", async (req, res) => {
+  const habId = parseInt(req.params.id, 10);
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "Email requerido." });
+
+  try {
+    const instructor = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
+    if (!instructor) return res.status(403).json({ message: "No autorizado." });
+
+    const hab = await getQuery(
+      "SELECT id, titulo, max_alumnos FROM habilidades WHERE id = ? AND usuario_id = ? AND activo = 1",
+      [habId, instructor.id]
+    );
+    if (!hab) return res.status(404).json({ message: "Habilidad no encontrada o no te pertenece." });
+
+    const alumnos = await allQuery(
+      `SELECT
+         i.id             AS inscripcion_id,
+         i.estado,
+         i.progreso,
+         i.creado_en      AS fecha_inscripcion,
+         u.id             AS usuario_id,
+         u.nombres,
+         u.apellido_paterno,
+         u.apellido_materno,
+         u.correo,
+         u.carrera,
+         u.intereses,
+         COALESCE(c.estrellas, NULL) AS calificacion
+       FROM inscripciones i
+       JOIN usuarios u ON u.id = i.usuario_id
+       LEFT JOIN calificaciones c ON c.habilidad_id = i.habilidad_id AND c.usuario_id = i.usuario_id
+       WHERE i.habilidad_id = ? AND i.estado IN ('activa', 'completado')
+       ORDER BY i.creado_en DESC`,
+      [habId]
+    );
+
+    return res.json({ habilidad: { id: hab.id, titulo: hab.titulo, max_alumnos: hab.max_alumnos }, alumnos });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando alumnos." });
+  }
+});
+
+// ── ACTUALIZAR PROGRESO DE ALUMNO (solo el instructor) ────────────
+app.put("/api/inscripciones/:id/progreso", async (req, res) => {
+  const inscId = parseInt(req.params.id, 10);
+  const { email, progreso } = req.body;
+  if (!email) return res.status(400).json({ message: "Email requerido." });
+
+  const prog = Math.min(100, Math.max(0, parseInt(progreso, 10) || 0));
+
+  try {
+    const instructor = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
+    if (!instructor) return res.status(403).json({ message: "No autorizado." });
+
+    // Verificar que la inscripción pertenece a una habilidad del instructor
+    const inscripcion = await getQuery(
+      `SELECT i.id, i.usuario_id, i.habilidad_id, i.estado, i.progreso AS progreso_actual
+       FROM inscripciones i
+       JOIN habilidades h ON h.id = i.habilidad_id
+       WHERE i.id = ? AND h.usuario_id = ?`,
+      [inscId, instructor.id]
+    );
+    if (!inscripcion) return res.status(404).json({ message: "Inscripción no encontrada o no autorizada." });
+
+    const nuevoEstado = prog >= 100 ? "completado" : "activa";
+    await runQuery("UPDATE inscripciones SET progreso = ?, estado = ? WHERE id = ?", [prog, nuevoEstado, inscId]);
+
+    // Notificar al alumno cuando pasa el 60% (puede calificar) o llega a 100%
+    const progresoAnterior = inscripcion.progreso_actual || 0;
+    const hab = await getQuery("SELECT titulo FROM habilidades WHERE id = ?", [inscripcion.habilidad_id]);
+
+    if (progresoAnterior < 60 && prog >= 60) {
+      await runQuery(
+        `INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'progreso', ?)`,
+        [inscripcion.usuario_id, `¡Alcanzaste el 60% en "${hab?.titulo}"! Ya puedes calificarlo. ⭐`]
+      );
+    }
+    if (progresoAnterior < 100 && prog >= 100) {
+      await runQuery(
+        `INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'completado', ?)`,
+        [inscripcion.usuario_id, `¡Completaste el curso "${hab?.titulo}"! 🎉`]
+      );
+    }
+
+    return res.json({ message: "Progreso actualizado.", progreso: prog, estado: nuevoEstado });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error actualizando progreso." });
+  }
+});
+
 // ── INSCRIPCIONES ─────────────────────────────────────────────────
 app.post("/api/inscripciones", async (req, res) => {
   const { email, habilidad_id } = req.body;
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
-    const hab = await getQuery(
-      "SELECT id, max_alumnos FROM habilidades WHERE id = ? AND activo = 1",
-      [habilidad_id]
-    );
+    const hab = await getQuery("SELECT id, max_alumnos FROM habilidades WHERE id = ? AND activo = 1", [habilidad_id]);
     if (!hab) return res.status(404).json({ message: "Habilidad no encontrada." });
-
-    // Verificar cupo
-    const inscritos = await getQuery(
-      "SELECT COUNT(*) AS cnt FROM inscripciones WHERE habilidad_id = ? AND estado = 'activa'",
-      [habilidad_id]
-    );
-    if (inscritos.cnt >= hab.max_alumnos)
-      return res.status(409).json({ message: "La habilidad está llena." });
-
-    await runQuery(
-      "INSERT OR IGNORE INTO inscripciones (usuario_id, habilidad_id) VALUES (?, ?)",
-      [usuario.id, habilidad_id]
-    );
+    const inscritos = await getQuery("SELECT COUNT(*) AS cnt FROM inscripciones WHERE habilidad_id = ? AND estado = 'activa'", [habilidad_id]);
+    if (inscritos.cnt >= hab.max_alumnos) return res.status(409).json({ message: "La habilidad está llena." });
+    await runQuery("INSERT OR IGNORE INTO inscripciones (usuario_id, habilidad_id) VALUES (?, ?)", [usuario.id, habilidad_id]);
     return res.status(201).json({ message: "Inscripción realizada." });
   } catch (err) {
     console.error(err);
@@ -847,81 +785,39 @@ app.post("/api/inscripciones", async (req, res) => {
 app.post("/api/solicitudes", async (req, res) => {
   const { de_email, para_email, para_usuario_id, mensaje } = req.body;
   try {
-    const de = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [de_email]
-    );
+    const de = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [de_email]);
     const para = para_usuario_id
       ? await getQuery("SELECT id FROM usuarios WHERE id = ?", [para_usuario_id])
-      : await getQuery(
-          "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-          [para_email]
-        );
-    if (!de || !para)
-      return res.status(404).json({ message: "Usuario(s) no encontrado(s)." });
-    if (de.id === para.id)
-      return res.status(400).json({ message: "No puedes enviarte una solicitud a ti mismo." });
+      : await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [para_email]);
+    if (!de || !para) return res.status(404).json({ message: "Usuario(s) no encontrado(s)." });
+    if (de.id === para.id) return res.status(400).json({ message: "No puedes enviarte una solicitud a ti mismo." });
 
     const existente = await getQuery(
-      `SELECT id FROM solicitudes
-       WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
+      `SELECT id FROM solicitudes WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
       [de.id, para.id]
     );
-    if (existente)
-      return res.status(409).json({ message: "Ya enviaste una solicitud a este usuario." });
+    if (existente) return res.status(409).json({ message: "Ya enviaste una solicitud a este usuario." });
 
-    // Si ambos se solicitan al mismo tiempo → aceptar automáticamente
     const inversa = await getQuery(
-      `SELECT id FROM solicitudes
-       WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
+      `SELECT id FROM solicitudes WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
       [para.id, de.id]
     );
 
     if (inversa) {
-      await runQuery(
-        "UPDATE solicitudes SET estado = 'aceptada' WHERE id = ?",
-        [inversa.id]
-      );
-      await runQuery(
-        `INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje, estado)
-         VALUES (?, ?, ?, 'aceptada')`,
-        [de.id, para.id, mensaje]
-      );
-      // Notificar a ambos
-      await runQuery(
-        `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
-         VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`,
-        [de.id]
-      );
-      await runQuery(
-        `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
-         VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`,
-        [para.id]
-      );
+      await runQuery("UPDATE solicitudes SET estado = 'aceptada' WHERE id = ?", [inversa.id]);
+      await runQuery(`INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje, estado) VALUES (?, ?, ?, 'aceptada')`, [de.id, para.id, mensaje]);
+      await runQuery(`INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`, [de.id]);
+      await runQuery(`INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'solicitud', 'Coincidencia mutua: ambos se enviaron solicitud de intercambio 🎉')`, [para.id]);
       return res.status(201).json({ message: "¡Coincidencia! Solicitud aceptada automáticamente.", estado: "aceptada" });
     }
 
-    const result = await runQuery(
-      `INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje)
-       VALUES (?, ?, ?)`,
-      [de.id, para.id, mensaje]
-    );
-
-    // Notificar al destinatario
-    const nombreDe = await getQuery(
-      "SELECT nombres || ' ' || apellido_paterno AS nombre FROM usuarios WHERE id = ?",
-      [de.id]
-    );
+    const result = await runQuery(`INSERT INTO solicitudes (de_usuario_id, para_usuario_id, mensaje) VALUES (?, ?, ?)`, [de.id, para.id, mensaje]);
+    const nombreDe = await getQuery("SELECT nombres || ' ' || apellido_paterno AS nombre FROM usuarios WHERE id = ?", [de.id]);
     await runQuery(
-      `INSERT INTO notificaciones (usuario_id, tipo, mensaje, datos_extra)
-       VALUES (?, 'solicitud', ?, ?)`,
-      [
-        para.id,
-        `${nombreDe?.nombre || "Alguien"} te envió una solicitud de intercambio`,
-        JSON.stringify({ solicitud_id: result.lastID, de_usuario_id: de.id }),
-      ]
+      `INSERT INTO notificaciones (usuario_id, tipo, mensaje, datos_extra) VALUES (?, 'solicitud', ?, ?)`,
+      [para.id, `${nombreDe?.nombre || "Alguien"} te envió una solicitud de intercambio`,
+       JSON.stringify({ solicitud_id: result.lastID, de_usuario_id: de.id })]
     );
-
     return res.status(201).json({ message: "Solicitud enviada.", estado: "pendiente" });
   } catch (err) {
     console.error(err);
@@ -935,12 +831,8 @@ app.put("/api/solicitudes/:id", async (req, res) => {
   if (!["aceptada", "rechazada", "cancelada"].includes(estado))
     return res.status(400).json({ message: "Estado inválido." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(403).json({ message: "No autorizado." });
-
     await runQuery("UPDATE solicitudes SET estado = ? WHERE id = ?", [estado, id]);
     return res.json({ message: `Solicitud ${estado}.` });
   } catch (err) {
@@ -953,22 +845,12 @@ app.put("/api/solicitudes/:id", async (req, res) => {
 app.post("/api/matches/rechazar", async (req, res) => {
   const { email, habilidad_id, usuario_match_id } = req.body;
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
     if (habilidad_id) {
-      await runQuery(
-        "UPDATE matches SET rechazado = 1 WHERE usuario_id = ? AND habilidad_id = ?",
-        [usuario.id, habilidad_id]
-      );
+      await runQuery("UPDATE matches SET rechazado = 1 WHERE usuario_id = ? AND habilidad_id = ?", [usuario.id, habilidad_id]);
     } else if (usuario_match_id) {
-      await runQuery(
-        "UPDATE user_matches SET rechazado = 1 WHERE usuario_id = ? AND usuario_match_id = ?",
-        [usuario.id, usuario_match_id]
-      );
+      await runQuery("UPDATE user_matches SET rechazado = 1 WHERE usuario_id = ? AND usuario_match_id = ?", [usuario.id, usuario_match_id]);
     }
     return res.json({ message: "Match rechazado." });
   } catch (err) {
@@ -979,19 +861,11 @@ app.post("/api/matches/rechazar", async (req, res) => {
 
 // ── NOTIFICACIONES ────────────────────────────────────────────────
 app.get("/api/notificaciones", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
-    const notifs = await allQuery(
-      `SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY creado_en DESC LIMIT 50`,
-      [usuario.id]
-    );
+    const notifs = await allQuery(`SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY creado_en DESC LIMIT 50`, [usuario.id]);
     return res.json({ notificaciones: notifs });
   } catch (err) {
     console.error(err);
@@ -1002,16 +876,9 @@ app.get("/api/notificaciones", async (req, res) => {
 app.put("/api/notificaciones/leer", async (req, res) => {
   const { email } = req.body;
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
-    await runQuery(
-      "UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?",
-      [usuario.id]
-    );
+    await runQuery("UPDATE notificaciones SET leida = 1 WHERE usuario_id = ?", [usuario.id]);
     return res.json({ message: "Notificaciones marcadas como leídas." });
   } catch (err) {
     console.error(err);
@@ -1019,23 +886,16 @@ app.put("/api/notificaciones/leer", async (req, res) => {
   }
 });
 
-// ── HISTORIAL DE MENSAJES por sala ────────────────────────────────
+// ── HISTORIAL DE MENSAJES ─────────────────────────────────────────
 app.get("/api/mensajes/:sala", async (req, res) => {
   const { sala } = req.params;
   const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
   try {
-    const salaRow = await getQuery(
-      "SELECT id FROM chat_salas WHERE nombre = ?",
-      [sala]
-    );
+    const salaRow = await getQuery("SELECT id FROM chat_salas WHERE nombre = ?", [sala]);
     if (!salaRow) return res.json({ mensajes: [] });
-
     const mensajes = await allQuery(
-      `SELECT nombre_usuario AS nombre, texto,
-              strftime('%H:%M', creado_en, 'localtime') AS hora,
-              creado_en
-       FROM chat_mensajes WHERE sala_id = ?
-       ORDER BY id DESC LIMIT ?`,
+      `SELECT nombre_usuario AS nombre, texto, strftime('%H:%M', creado_en, 'localtime') AS hora, creado_en
+       FROM chat_mensajes WHERE sala_id = ? ORDER BY id DESC LIMIT ?`,
       [salaRow.id, limit]
     );
     return res.json({ mensajes: mensajes.reverse() });
@@ -1047,8 +907,7 @@ app.get("/api/mensajes/:sala", async (req, res) => {
 
 // ── USUARIO: GET & PUT ────────────────────────────────────────────
 app.get("/api/users/me", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
   if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
   try {
     const user = await getUserByEmail(email);
@@ -1061,87 +920,53 @@ app.get("/api/users/me", async (req, res) => {
 });
 
 app.put("/api/users/me", async (req, res) => {
-  const email =
-    typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const fullName =
-    typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
+  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  const fullName = typeof req.body.fullName === "string" ? req.body.fullName.trim() : "";
   const career = typeof req.body.career === "string" ? req.body.career.trim() : "";
-  const interests =
-    typeof req.body.interests === "string" ? req.body.interests.trim() : "";
-  const availability =
-    typeof req.body.availability === "string" ? req.body.availability.trim() : "";
+  const interests = typeof req.body.interests === "string" ? req.body.interests.trim() : "";
+  const availability = typeof req.body.availability === "string" ? req.body.availability.trim() : "";
   const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
-  const semesterVal =
-    typeof req.body.semester === "string" || typeof req.body.semester === "number"
-      ? String(req.body.semester).trim()
-      : "";
+  const semesterVal = typeof req.body.semester === "string" || typeof req.body.semester === "number" ? String(req.body.semester).trim() : "";
 
   if (!email) return res.status(400).json({ message: "El correo es obligatorio." });
-  if (!fullName)
-    return res.status(400).json({ message: "El nombre completo es obligatorio." });
+  if (!fullName) return res.status(400).json({ message: "El nombre completo es obligatorio." });
 
   const { nombres, apellidoPaterno, apellidoMaterno } = splitFullName(fullName);
   const semester = semesterVal === "" ? null : Number(semesterVal);
-  if (!nombres || !apellidoPaterno)
-    return res
-      .status(400)
-      .json({ message: "Ingresa al menos nombre y apellido paterno." });
-  if (semesterVal !== "" && Number.isNaN(semester))
-    return res.status(400).json({ message: "El semestre debe ser numérico." });
+  if (!nombres || !apellidoPaterno) return res.status(400).json({ message: "Ingresa al menos nombre y apellido paterno." });
+  if (semesterVal !== "" && Number.isNaN(semester)) return res.status(400).json({ message: "El semestre debe ser numérico." });
 
   try {
     const existente = await getUserByEmail(email);
     if (!existente) return res.status(404).json({ message: "Usuario no encontrado." });
-
     await runQuery(
-      `UPDATE usuarios
-         SET nombres = ?, apellido_paterno = ?, apellido_materno = ?,
-             carrera = ?, intereses = ?, disponibilidad = ?,
-             telefono = ?, semestre = ?
-       WHERE id = ?`,
-      [nombres, apellidoPaterno, apellidoMaterno,
-        career, interests, availability, phone, semester, existente.id]
+      `UPDATE usuarios SET nombres = ?, apellido_paterno = ?, apellido_materno = ?,
+             carrera = ?, intereses = ?, disponibilidad = ?, telefono = ?, semestre = ? WHERE id = ?`,
+      [nombres, apellidoPaterno, apellidoMaterno, career, interests, availability, phone, semester, existente.id]
     );
-
-    // Regenerar matches con los nuevos intereses
     generarMatchesUsuario(existente.id).catch(console.error);
-
     const updatedUser = await getUserByEmail(email);
-    return res.json({
-      message: "Perfil actualizado correctamente.",
-      user: formatUserProfile(updatedUser),
-    });
+    return res.json({ message: "Perfil actualizado correctamente.", user: formatUserProfile(updatedUser) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "No fue posible actualizar el perfil." });
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// RUTAS ADICIONALES — pegar en server.js antes de server.listen()
-// ═══════════════════════════════════════════════════════════════
-
-// ── Habilidades que YO imparto ────────────────────────────────────
+// ── Habilidades MÍA ───────────────────────────────────────────────
 app.get("/api/habilidades/mias", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
   if (!email) return res.status(400).json({ message: "Email requerido." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
     const habs = await allQuery(
-      `SELECT h.*,
-              COALESCE(AVG(c.estrellas), 0)  AS rating,
-              COUNT(DISTINCT i.id)            AS students_count
+      `SELECT h.*, COALESCE(AVG(c.estrellas), 0) AS rating, COUNT(DISTINCT i.id) AS students_count
        FROM habilidades h
        LEFT JOIN calificaciones c ON c.habilidad_id = h.id
-       LEFT JOIN inscripciones  i ON i.habilidad_id = h.id AND i.estado = 'activa'
+       LEFT JOIN inscripciones i ON i.habilidad_id = h.id AND i.estado = 'activa'
        WHERE h.usuario_id = ? AND h.activo = 1
-       GROUP BY h.id
-       ORDER BY h.creado_en DESC`,
+       GROUP BY h.id ORDER BY h.creado_en DESC`,
       [usuario.id]
     );
     return res.json({ habilidades: habs });
@@ -1151,39 +976,24 @@ app.get("/api/habilidades/mias", async (req, res) => {
   }
 });
 
-// ── Mis inscripciones (cursos en los que soy alumno) ──────────────
+// ── Mis inscripciones ─────────────────────────────────────────────
 app.get("/api/inscripciones/mias", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
   if (!email) return res.status(400).json({ message: "Email requerido." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
     const rows = await allQuery(
-      `SELECT i.id           AS inscripcion_id,
-              i.estado,
-              i.progreso,
-              i.creado_en    AS fecha_inscripcion,
-              h.id           AS habilidad_id,
-              h.titulo,
-              h.categoria,
-              h.nivel,
-              h.horario_dia,
-              h.horario_hora_inicio,
-              h.horario_hora_fin,
-              h.max_alumnos,
+      `SELECT i.id AS inscripcion_id, i.estado, i.progreso, i.creado_en AS fecha_inscripcion,
+              h.id AS habilidad_id, h.titulo, h.categoria, h.nivel, h.horario_dia,
+              h.horario_hora_inicio, h.horario_hora_fin, h.max_alumnos,
               u.nombres || ' ' || u.apellido_paterno AS instructor,
               COALESCE(c.estrellas, NULL) AS calificacion
        FROM inscripciones i
        JOIN habilidades h ON h.id = i.habilidad_id
-       JOIN usuarios    u ON u.id = h.usuario_id
-       LEFT JOIN calificaciones c
-             ON c.habilidad_id = i.habilidad_id AND c.usuario_id = i.usuario_id
-       WHERE i.usuario_id = ?
-       ORDER BY i.creado_en DESC`,
+       JOIN usuarios u ON u.id = h.usuario_id
+       LEFT JOIN calificaciones c ON c.habilidad_id = i.habilidad_id AND c.usuario_id = i.usuario_id
+       WHERE i.usuario_id = ? ORDER BY i.creado_en DESC`,
       [usuario.id]
     );
     return res.json({ inscripciones: rows });
@@ -1193,31 +1003,17 @@ app.get("/api/inscripciones/mias", async (req, res) => {
   }
 });
 
-// ── Darse de baja de un curso ────────────────────────────────────
+// ── Baja de un curso ──────────────────────────────────────────────
 app.put("/api/inscripciones/baja", async (req, res) => {
   const { email, habilidad_id } = req.body;
-  if (!email || !habilidad_id)
-    return res.status(400).json({ message: "Email y habilidad_id requeridos." });
+  if (!email || !habilidad_id) return res.status(400).json({ message: "Email y habilidad_id requeridos." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
-    await runQuery(
-      `UPDATE inscripciones SET estado = 'baja'
-       WHERE usuario_id = ? AND habilidad_id = ?`,
-      [usuario.id, habilidad_id]
-    );
-
-    // Registrar en historial
+    await runQuery(`UPDATE inscripciones SET estado = 'baja' WHERE usuario_id = ? AND habilidad_id = ?`, [usuario.id, habilidad_id]);
     const hab = await getQuery("SELECT titulo FROM habilidades WHERE id = ?", [habilidad_id]);
-    await runQuery(
-      `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
-       VALUES (?, 'baja', ?)`,
-      [usuario.id, `Te diste de baja de "${hab?.titulo || "un curso"}"`]
-    );
-
+    await runQuery(`INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'baja', ?)`,
+      [usuario.id, `Te diste de baja de "${hab?.titulo || "un curso"}"`]);
     return res.json({ message: "Baja registrada correctamente." });
   } catch (err) {
     console.error(err);
@@ -1228,45 +1024,26 @@ app.put("/api/inscripciones/baja", async (req, res) => {
 // ── Calificaciones ────────────────────────────────────────────────
 app.post("/api/calificaciones", async (req, res) => {
   const { email, habilidad_id, estrellas } = req.body;
-  if (!email || !habilidad_id || !estrellas)
-    return res.status(400).json({ message: "Faltan campos." });
-  if (![1, 2, 3, 4, 5].includes(Number(estrellas)))
-    return res.status(400).json({ message: "Estrellas debe ser 1–5." });
+  if (!email || !habilidad_id || !estrellas) return res.status(400).json({ message: "Faltan campos." });
+  if (![1, 2, 3, 4, 5].includes(Number(estrellas))) return res.status(400).json({ message: "Estrellas debe ser 1–5." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
 
-    // Solo si tiene inscripción y progreso >= 60
     const inscripcion = await getQuery(
-      `SELECT progreso FROM inscripciones
-       WHERE usuario_id = ? AND habilidad_id = ? AND estado IN ('activa','completado')`,
+      `SELECT progreso FROM inscripciones WHERE usuario_id = ? AND habilidad_id = ? AND estado IN ('activa','completado')`,
       [usuario.id, habilidad_id]
     );
-    if (!inscripcion)
-      return res.status(403).json({ message: "No estás inscrito en este curso." });
-    if ((inscripcion.progreso || 0) < 60)
-      return res.status(403).json({ message: "Debes completar al menos el 60% para calificar." });
+    if (!inscripcion) return res.status(403).json({ message: "No estás inscrito en este curso." });
+    if ((inscripcion.progreso || 0) < 60) return res.status(403).json({ message: "Debes completar al menos el 60% para calificar." });
 
-    // Solo una calificación por alumno
-    const existe = await getQuery(
-      "SELECT id FROM calificaciones WHERE usuario_id = ? AND habilidad_id = ?",
-      [usuario.id, habilidad_id]
-    );
-    if (existe)
-      return res.status(409).json({ message: "Ya calificaste este curso." });
+    const existe = await getQuery("SELECT id FROM calificaciones WHERE usuario_id = ? AND habilidad_id = ?", [usuario.id, habilidad_id]);
+    if (existe) return res.status(409).json({ message: "Ya calificaste este curso." });
 
-    await runQuery(
-      "INSERT INTO calificaciones (usuario_id, habilidad_id, estrellas) VALUES (?, ?, ?)",
-      [usuario.id, habilidad_id, Number(estrellas)]
-    );
-
+    await runQuery("INSERT INTO calificaciones (usuario_id, habilidad_id, estrellas) VALUES (?, ?, ?)", [usuario.id, habilidad_id, Number(estrellas)]);
     const hab = await getQuery("SELECT titulo FROM habilidades WHERE id = ?", [habilidad_id]);
-    await runQuery(
-      `INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'calificacion', ?)`,
-      [usuario.id, `Calificaste "${hab?.titulo || "un curso"}" con ${estrellas} ⭐`]
-    );
+    await runQuery(`INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'calificacion', ?)`,
+      [usuario.id, `Calificaste "${hab?.titulo || "un curso"}" con ${estrellas} ⭐`]);
 
     return res.status(201).json({ message: "Calificación registrada." });
   } catch (err) {
@@ -1275,134 +1052,68 @@ app.post("/api/calificaciones", async (req, res) => {
   }
 });
 
-// ── Historial completo del usuario ────────────────────────────────
+// ── Historial ─────────────────────────────────────────────────────
 app.get("/api/historial", async (req, res) => {
-  const email =
-    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  const email = typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
   if (!email) return res.status(400).json({ message: "Email requerido." });
   try {
-    const usuario = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
-    );
+    const usuario = await getQuery("SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]);
     if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
-
     const uid = usuario.id;
     const eventos = [];
 
-    // 1) Matches generados
     const matchRows = await allQuery(
-      `SELECT m.creado_en AS fecha, h.titulo, h.categoria,
-              m.match_percent, m.razon
-       FROM matches m
-       JOIN habilidades h ON h.id = m.habilidad_id
-       WHERE m.usuario_id = ? AND m.rechazado = 0
-       ORDER BY m.creado_en DESC LIMIT 30`,
+      `SELECT m.creado_en AS fecha, h.titulo, h.categoria, m.match_percent, m.razon
+       FROM matches m JOIN habilidades h ON h.id = m.habilidad_id
+       WHERE m.usuario_id = ? AND m.rechazado = 0 ORDER BY m.creado_en DESC LIMIT 30`,
       [uid]
     );
-    matchRows.forEach(r => eventos.push({
-      tipo: "match",
-      titulo: `Match con "${r.titulo}"`,
-      subtitulo: r.razon || `${r.match_percent}% de compatibilidad`,
-      fecha: r.fecha,
-    }));
+    matchRows.forEach(r => eventos.push({ tipo: "match", titulo: `Match con "${r.titulo}"`, subtitulo: r.razon || `${r.match_percent}% de compatibilidad`, fecha: r.fecha }));
 
-    // 2) Inscripciones
     const inscRows = await allQuery(
-      `SELECT i.creado_en AS fecha, i.estado, h.titulo, h.categoria,
-              u.nombres || ' ' || u.apellido_paterno AS instructor
-       FROM inscripciones i
-       JOIN habilidades h ON h.id = i.habilidad_id
-       JOIN usuarios    u ON u.id = h.usuario_id
-       WHERE i.usuario_id = ?
-       ORDER BY i.creado_en DESC`,
+      `SELECT i.creado_en AS fecha, i.estado, h.titulo, h.categoria, u.nombres || ' ' || u.apellido_paterno AS instructor
+       FROM inscripciones i JOIN habilidades h ON h.id = i.habilidad_id JOIN usuarios u ON u.id = h.usuario_id
+       WHERE i.usuario_id = ? ORDER BY i.creado_en DESC`,
       [uid]
     );
     inscRows.forEach(r => {
       const tipo = r.estado === "baja" ? "baja" : "inscrito";
-      eventos.push({
-        tipo,
-        titulo: tipo === "baja"
-          ? `Baja de "${r.titulo}"`
-          : `Inscripción en "${r.titulo}"`,
-        subtitulo: `Con ${r.instructor}`,
-        fecha: r.fecha,
-      });
+      eventos.push({ tipo, titulo: tipo === "baja" ? `Baja de "${r.titulo}"` : `Inscripción en "${r.titulo}"`, subtitulo: `Con ${r.instructor}`, fecha: r.fecha });
     });
 
-    // 3) Solicitudes enviadas
     const solRows = await allQuery(
-      `SELECT s.creado_en AS fecha, s.estado,
-              u.nombres || ' ' || u.apellido_paterno AS para_nombre
-       FROM solicitudes s
-       JOIN usuarios u ON u.id = s.para_usuario_id
-       WHERE s.de_usuario_id = ?
-       ORDER BY s.creado_en DESC`,
+      `SELECT s.creado_en AS fecha, s.estado, u.nombres || ' ' || u.apellido_paterno AS para_nombre
+       FROM solicitudes s JOIN usuarios u ON u.id = s.para_usuario_id WHERE s.de_usuario_id = ? ORDER BY s.creado_en DESC`,
       [uid]
     );
-    solRows.forEach(r => eventos.push({
-      tipo: "solicitud",
-      titulo: `Solicitud enviada a ${r.para_nombre}`,
-      subtitulo: `Estado: ${r.estado}`,
-      fecha: r.fecha,
-    }));
+    solRows.forEach(r => eventos.push({ tipo: "solicitud", titulo: `Solicitud enviada a ${r.para_nombre}`, subtitulo: `Estado: ${r.estado}`, fecha: r.fecha }));
 
-    // 4) Solicitudes recibidas
     const solRecRows = await allQuery(
-      `SELECT s.creado_en AS fecha, s.estado,
-              u.nombres || ' ' || u.apellido_paterno AS de_nombre
-       FROM solicitudes s
-       JOIN usuarios u ON u.id = s.de_usuario_id
-       WHERE s.para_usuario_id = ?
-       ORDER BY s.creado_en DESC`,
+      `SELECT s.creado_en AS fecha, s.estado, u.nombres || ' ' || u.apellido_paterno AS de_nombre
+       FROM solicitudes s JOIN usuarios u ON u.id = s.de_usuario_id WHERE s.para_usuario_id = ? ORDER BY s.creado_en DESC`,
       [uid]
     );
-    solRecRows.forEach(r => eventos.push({
-      tipo: "solicitud",
-      titulo: `Solicitud recibida de ${r.de_nombre}`,
-      subtitulo: `Estado: ${r.estado}`,
-      fecha: r.fecha,
-    }));
+    solRecRows.forEach(r => eventos.push({ tipo: "solicitud", titulo: `Solicitud recibida de ${r.de_nombre}`, subtitulo: `Estado: ${r.estado}`, fecha: r.fecha }));
 
-    // 5) Habilidades publicadas
     const habRows = await allQuery(
-      `SELECT creado_en AS fecha, titulo, categoria, nivel, activo
-       FROM habilidades WHERE usuario_id = ?
-       ORDER BY creado_en DESC`,
+      `SELECT creado_en AS fecha, titulo, categoria, nivel, activo FROM habilidades WHERE usuario_id = ? ORDER BY creado_en DESC`,
       [uid]
     );
-    habRows.forEach(r => eventos.push({
-      tipo: "publicada",
-      titulo: `Publicaste "${r.titulo}"`,
-      subtitulo: `${r.categoria} · ${r.nivel}${!r.activo ? " (eliminada)" : ""}`,
-      fecha: r.fecha,
-    }));
+    habRows.forEach(r => eventos.push({ tipo: "publicada", titulo: `Publicaste "${r.titulo}"`, subtitulo: `${r.categoria} · ${r.nivel}${!r.activo ? " (eliminada)" : ""}`, fecha: r.fecha }));
 
-    // 6) Calificaciones dadas
     const calRows = await allQuery(
-      `SELECT c.creado_en AS fecha, c.estrellas, h.titulo
-       FROM calificaciones c
-       JOIN habilidades h ON h.id = c.habilidad_id
-       WHERE c.usuario_id = ?
-       ORDER BY c.creado_en DESC`,
+      `SELECT c.creado_en AS fecha, c.estrellas, h.titulo FROM calificaciones c JOIN habilidades h ON h.id = c.habilidad_id WHERE c.usuario_id = ? ORDER BY c.creado_en DESC`,
       [uid]
     );
-    calRows.forEach(r => eventos.push({
-      tipo: "calificacion",
-      titulo: `Calificaste "${r.titulo}"`,
-      subtitulo: `${"⭐".repeat(r.estrellas)} ${r.estrellas}/5`,
-      fecha: r.fecha,
-    }));
+    calRows.forEach(r => eventos.push({ tipo: "calificacion", titulo: `Calificaste "${r.titulo}"`, subtitulo: `${"⭐".repeat(r.estrellas)} ${r.estrellas}/5`, fecha: r.fecha }));
 
-    // Ordenar por fecha descendente
     eventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
     return res.json({ historial: eventos });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Error cargando historial." });
   }
 });
-
 
 // ── INICIAR SERVIDOR ──────────────────────────────────────────────
 server.listen(PORT, () => {

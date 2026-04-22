@@ -690,6 +690,86 @@
 <!-- Toast global -->
 <div id="ss-toast"></div>
 
+<!-- 
+=================================================================
+INSTRUCCIÓN: Agrega este bloque HTML justo ANTES del cierre </body>
+en public/pages/dashboard.html (antes de las etiquetas <script>)
+=================================================================
+-->
+
+<!-- ═══════════════════════════════════════════════════════
+     MODAL: VER ALUMNOS INSCRITOS (para el instructor)
+═══════════════════════════════════════════════════════ -->
+<div class="ss-modal-overlay" id="modal-alumnos">
+  <div class="ss-modal" style="max-width:680px;">
+    <div class="ss-modal-head">
+      <h2 id="modal-alumnos-titulo">Alumnos inscritos</h2>
+      <button class="ss-modal-close" onclick="cerrarModalAlumnos()">✕</button>
+    </div>
+    <div class="ss-modal-body" id="modal-alumnos-body" style="padding-top:0;">
+      <!-- Contenido dinámico -->
+    </div>
+  </div>
+</div>
+
+<!-- 
+=================================================================
+INSTRUCCIÓN: Agrega este bloque de <style> dentro del <head> de
+public/pages/dashboard.html (junto con los estilos existentes)
+=================================================================
+-->
+<style>
+/* ── Tabla de alumnos ───────────────────────────────────────── */
+.ss-alumnos-table { width:100%; border-collapse:collapse; margin-top:1rem; }
+.ss-alumnos-table th {
+  text-align:left; font-size:0.75rem; font-weight:700; color:#64748b;
+  text-transform:uppercase; letter-spacing:0.04em;
+  padding:0.5rem 0.75rem; border-bottom:2px solid #e2e8f0;
+}
+.ss-alumnos-table td {
+  padding:0.85rem 0.75rem; border-bottom:1px solid #f1f5f9;
+  font-size:0.88rem; color:#0f172a; vertical-align:middle;
+}
+.ss-alumnos-table tr:last-child td { border-bottom:none; }
+.ss-alumnos-table tr:hover td { background:#f8fafc; }
+
+/* Barra de progreso compacta */
+.sa-prog-wrap { display:flex; align-items:center; gap:0.6rem; min-width:160px; }
+.sa-prog-bar  { flex:1; height:6px; background:#e2e8f0; border-radius:99px; overflow:hidden; }
+.sa-prog-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,#2563eb,#7c3aed); transition:width 0.4s ease; }
+.sa-prog-pct  { font-size:0.78rem; font-weight:700; color:#475569; min-width:34px; text-align:right; }
+
+/* Inputs de progreso */
+.sa-prog-input {
+  width:70px; padding:0.3rem 0.5rem; border:1.5px solid #e2e8f0;
+  border-radius:8px; font-size:0.85rem; text-align:center;
+  outline:none; background:#f8fafc;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+.sa-prog-input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); background:#fff; }
+
+.sa-prog-btn {
+  padding:0.35rem 0.85rem; border:none; border-radius:8px;
+  background:#2563eb; color:#fff; font-size:0.78rem; font-weight:700;
+  cursor:pointer; transition:opacity 0.15s, transform 0.1s;
+  white-space:nowrap;
+}
+.sa-prog-btn:hover { opacity:0.88; transform:translateY(-1px); }
+.sa-prog-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
+
+/* Estrellas de calificación (solo lectura) */
+.sa-stars { color:#f59e0b; font-size:1rem; }
+.sa-no-cal { color:#cbd5e1; font-size:0.78rem; font-style:italic; }
+
+/* Estado badge */
+.sa-badge {
+  font-size:0.7rem; font-weight:700; padding:0.2rem 0.6rem;
+  border-radius:20px; white-space:nowrap;
+}
+.sa-badge-activa     { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+.sa-badge-completado { background:#ecfdf5; color:#065f46; border:1px solid #6ee7b7; }
+</style>
+
 <!-- Scripts -->
 <script src="/js/session.js"></script>
 <script src="/js/dashboard.js"></script>
@@ -1268,6 +1348,175 @@ function esc(str) {
   return String(str ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
 }
+/* ═══════════════════════════════════════════════════════════════
+   INSTRUCCIÓN: Agrega este bloque de JS al final del <script> 
+   existente en public/pages/dashboard.html  
+   (después de la función `esc()` que ya está al final)
+═══════════════════════════════════════════════════════════════ */
+
+/* ── VER ALUMNOS — modal del instructor ─────────────────────────── */
+
+// Reemplaza la función verInscritos() que existía antes (solo mostraba un toast)
+async function verInscritos(habId, titulo) {
+  const email = getCurrentUserEmail();
+  if (!email) return;
+
+  const modal = document.getElementById("modal-alumnos");
+  const titulo_el = document.getElementById("modal-alumnos-titulo");
+  const body = document.getElementById("modal-alumnos-body");
+
+  titulo_el.textContent = `Alumnos de "${titulo}"`;
+  body.innerHTML = `<p style="padding:2rem;text-align:center;color:#64748b;">Cargando alumnos…</p>`;
+  modal.classList.add("open");
+
+  try {
+    const res = await fetch(`/api/habilidades/${habId}/alumnos?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      body.innerHTML = `<p style="padding:2rem;text-align:center;color:#dc2626;">${esc(data.message || "Error al cargar alumnos.")}</p>`;
+      return;
+    }
+
+    const alumnos = data.alumnos || [];
+    if (!alumnos.length) {
+      body.innerHTML = `
+        <div style="padding:3rem;text-align:center;color:#64748b;">
+          <div style="font-size:2.5rem;margin-bottom:0.75rem;">👥</div>
+          <p style="font-weight:600;color:#0f172a;">Sin alumnos inscritos todavía</p>
+          <p style="font-size:0.88rem;margin-top:0.4rem;">Cuando alguien se inscriba, aparecerá aquí.</p>
+        </div>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <p style="font-size:0.85rem;color:#64748b;padding:1rem 0 0.5rem;">
+        ${alumnos.length} alumno${alumnos.length !== 1 ? "s" : ""} inscrito${alumnos.length !== 1 ? "s" : ""}.
+        Ajusta el % de progreso y haz clic en <b>Guardar</b> para actualizarlo.
+        Los alumnos con ≥ 60% podrán calificarte.
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="ss-alumnos-table">
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Estado</th>
+              <th>Progreso</th>
+              <th>Calificación</th>
+              <th>Actualizar</th>
+            </tr>
+          </thead>
+          <tbody id="alumnos-tbody">
+            ${alumnos.map(a => renderFilaAlumno(a)).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    body.innerHTML = `<p style="padding:2rem;text-align:center;color:#dc2626;">Error de conexión: ${esc(err.message)}</p>`;
+  }
+}
+
+function renderFilaAlumno(a) {
+  const nombre = esc(`${a.nombres || ""} ${a.apellido_paterno || ""}`.trim() || "Alumno");
+  const prog = Math.min(100, Math.max(0, Number(a.progreso) || 0));
+  const estrellas = a.calificacion
+    ? `<span class="sa-stars">${"★".repeat(a.calificacion)}${"☆".repeat(5 - a.calificacion)}</span> ${a.calificacion}/5`
+    : `<span class="sa-no-cal">Sin calificar${prog < 60 ? " (< 60%)" : ""}</span>`;
+
+  const badgeClass = a.estado === "completado" ? "sa-badge-completado" : "sa-badge-activa";
+  const badgeLabel = a.estado === "completado" ? "✓ Completado" : "En curso";
+
+  return `
+    <tr id="fila-insc-${a.inscripcion_id}">
+      <td>
+        <div style="font-weight:600;">${nombre}</div>
+        <div style="font-size:0.76rem;color:#94a3b8;">${esc(a.correo || "")}</div>
+      </td>
+      <td><span class="sa-badge ${badgeClass}">${badgeLabel}</span></td>
+      <td>
+        <div class="sa-prog-wrap">
+          <div class="sa-prog-bar">
+            <div class="sa-prog-fill" id="fill-${a.inscripcion_id}" style="width:${prog}%"></div>
+          </div>
+          <span class="sa-prog-pct" id="pct-${a.inscripcion_id}">${prog}%</span>
+        </div>
+      </td>
+      <td>${estrellas}</td>
+      <td style="white-space:nowrap;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <input class="sa-prog-input" id="input-prog-${a.inscripcion_id}"
+            type="number" min="0" max="100" value="${prog}"
+            oninput="previewProgreso(${a.inscripcion_id}, this.value)">
+          <button class="sa-prog-btn" id="btn-prog-${a.inscripcion_id}"
+            onclick="guardarProgreso(${a.inscripcion_id}, ${a.inscripcion_id})">
+            Guardar
+          </button>
+        </div>
+      </td>
+    </tr>`;
+}
+
+function previewProgreso(inscId, valor) {
+  const v = Math.min(100, Math.max(0, parseInt(valor, 10) || 0));
+  const fill = document.getElementById(`fill-${inscId}`);
+  const pct = document.getElementById(`pct-${inscId}`);
+  if (fill) fill.style.width = `${v}%`;
+  if (pct) pct.textContent = `${v}%`;
+}
+
+async function guardarProgreso(inscId) {
+  const email = getCurrentUserEmail();
+  if (!email) return;
+
+  const input = document.getElementById(`input-prog-${inscId}`);
+  const btn = document.getElementById(`btn-prog-${inscId}`);
+  if (!input || !btn) return;
+
+  const progreso = Math.min(100, Math.max(0, parseInt(input.value, 10) || 0));
+  btn.disabled = true;
+  btn.textContent = "…";
+
+  try {
+    const res = await fetch(`/api/inscripciones/${inscId}/progreso`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, progreso }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(`Progreso actualizado a ${progreso}%`, "success");
+      // Actualizar la fila visualmente
+      const fill = document.getElementById(`fill-${inscId}`);
+      const pct = document.getElementById(`pct-${inscId}`);
+      if (fill) fill.style.width = `${progreso}%`;
+      if (pct) pct.textContent = `${progreso}%`;
+      input.value = progreso;
+      // Si llegó a 100%, actualizar badge de estado
+      if (progreso >= 100) {
+        const fila = document.getElementById(`fila-insc-${inscId}`);
+        const badge = fila?.querySelector(".sa-badge");
+        if (badge) { badge.className = "sa-badge sa-badge-completado"; badge.textContent = "✓ Completado"; }
+      }
+    } else {
+      toast(data.message || "Error al guardar progreso", "error");
+    }
+  } catch {
+    toast("Error de conexión", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Guardar";
+  }
+}
+
+function cerrarModalAlumnos() {
+  document.getElementById("modal-alumnos").classList.remove("open");
+}
+
+document.getElementById("modal-alumnos")?.addEventListener("click", e => {
+  if (e.target === e.currentTarget) cerrarModalAlumnos();
+});
+
+
 </script>
 </body>
 </html>
