@@ -188,8 +188,8 @@ function renderUserCard(user) {
       </div>
       <div class="ss-card-action">
         <div class="ss-user-btn-row">
-          <button class="ss-card-btn" type="button"
-            onclick="enviarSolicitud('${escapeHtml(user.name)}', ${user.id})">
+          <button class="ss-card-btn" type="button" data-user-name="${escapeHtml(user.name)}"
+            onclick="enviarSolicitud(${user.id}, this)">
             Enviar solicitud
           </button>
         </div>
@@ -285,14 +285,49 @@ async function inscribirse(habilidadId, btn) {
 }
 
 // ── Enviar solicitud de intercambio ───────────────────────────────
-async function enviarSolicitud(nombre, usuarioMatchId) {
+async function enviarSolicitud(usuarioMatchId, btn) {
   const email = getCurrentUserEmail();
   if (!email) { alert("Debes iniciar sesión."); return; }
+  if (btn?.disabled) return;
+  const nombre = btn?.dataset?.userName || "este usuario";
 
-  // Obtener el email del usuario destino
-  // (No lo tenemos en el card, así que usamos el id para buscarlo)
-  // Por simplicidad usamos un mensaje genérico
-  alert(`Solicitud enviada a ${nombre}. Funcionalidad en desarrollo.`);
+  const originalText = btn?.textContent || "Enviar solicitud";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+  }
+
+  try {
+    const res = await fetch("/api/solicitudes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        de_email: email,
+        para_usuario_id: usuarioMatchId,
+        mensaje: `Hola ${nombre}, me interesa conectar contigo en SkillSwap.`,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+      alert(data.message || "No fue posible enviar la solicitud.");
+      return;
+    }
+
+    if (btn) {
+      btn.textContent = data.estado === "aceptada" ? "✓ Match logrado" : "✓ Solicitud enviada";
+    }
+  } catch {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+    alert("Error de conexión.");
+  }
 }
 
 // ── Bind controles ────────────────────────────────────────────────

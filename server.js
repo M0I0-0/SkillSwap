@@ -845,18 +845,30 @@ app.post("/api/inscripciones", async (req, res) => {
 
 // ── SOLICITUDES ───────────────────────────────────────────────────
 app.post("/api/solicitudes", async (req, res) => {
-  const { de_email, para_email, mensaje } = req.body;
+  const { de_email, para_email, para_usuario_id, mensaje } = req.body;
   try {
     const de = await getQuery(
       "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
       [de_email]
     );
-    const para = await getQuery(
-      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
-      [para_email]
-    );
+    const para = para_usuario_id
+      ? await getQuery("SELECT id FROM usuarios WHERE id = ?", [para_usuario_id])
+      : await getQuery(
+          "SELECT id FROM usuarios WHERE lower(correo) = lower(?)",
+          [para_email]
+        );
     if (!de || !para)
       return res.status(404).json({ message: "Usuario(s) no encontrado(s)." });
+    if (de.id === para.id)
+      return res.status(400).json({ message: "No puedes enviarte una solicitud a ti mismo." });
+
+    const existente = await getQuery(
+      `SELECT id FROM solicitudes
+       WHERE de_usuario_id = ? AND para_usuario_id = ? AND estado = 'pendiente'`,
+      [de.id, para.id]
+    );
+    if (existente)
+      return res.status(409).json({ message: "Ya enviaste una solicitud a este usuario." });
 
     // Si ambos se solicitan al mismo tiempo → aceptar automáticamente
     const inversa = await getQuery(
