@@ -1105,6 +1105,293 @@ app.put("/api/users/me", async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// RUTAS ADICIONALES — pegar en server.js antes de server.listen()
+// ═══════════════════════════════════════════════════════════════
+
+// ── Habilidades que YO imparto ────────────────────────────────────
+app.get("/api/habilidades/mias", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "Email requerido." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const habs = await allQuery(
+      `SELECT h.*,
+              COALESCE(AVG(c.estrellas), 0)  AS rating,
+              COUNT(DISTINCT i.id)            AS students_count
+       FROM habilidades h
+       LEFT JOIN calificaciones c ON c.habilidad_id = h.id
+       LEFT JOIN inscripciones  i ON i.habilidad_id = h.id AND i.estado = 'activa'
+       WHERE h.usuario_id = ? AND h.activo = 1
+       GROUP BY h.id
+       ORDER BY h.creado_en DESC`,
+      [usuario.id]
+    );
+    return res.json({ habilidades: habs });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando tus habilidades." });
+  }
+});
+
+// ── Mis inscripciones (cursos en los que soy alumno) ──────────────
+app.get("/api/inscripciones/mias", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "Email requerido." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const rows = await allQuery(
+      `SELECT i.id           AS inscripcion_id,
+              i.estado,
+              i.progreso,
+              i.creado_en    AS fecha_inscripcion,
+              h.id           AS habilidad_id,
+              h.titulo,
+              h.categoria,
+              h.nivel,
+              h.horario_dia,
+              h.horario_hora_inicio,
+              h.horario_hora_fin,
+              h.max_alumnos,
+              u.nombres || ' ' || u.apellido_paterno AS instructor,
+              COALESCE(c.estrellas, NULL) AS calificacion
+       FROM inscripciones i
+       JOIN habilidades h ON h.id = i.habilidad_id
+       JOIN usuarios    u ON u.id = h.usuario_id
+       LEFT JOIN calificaciones c
+             ON c.habilidad_id = i.habilidad_id AND c.usuario_id = i.usuario_id
+       WHERE i.usuario_id = ?
+       ORDER BY i.creado_en DESC`,
+      [usuario.id]
+    );
+    return res.json({ inscripciones: rows });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando inscripciones." });
+  }
+});
+
+// ── Darse de baja de un curso ────────────────────────────────────
+app.put("/api/inscripciones/baja", async (req, res) => {
+  const { email, habilidad_id } = req.body;
+  if (!email || !habilidad_id)
+    return res.status(400).json({ message: "Email y habilidad_id requeridos." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    await runQuery(
+      `UPDATE inscripciones SET estado = 'baja'
+       WHERE usuario_id = ? AND habilidad_id = ?`,
+      [usuario.id, habilidad_id]
+    );
+
+    // Registrar en historial
+    const hab = await getQuery("SELECT titulo FROM habilidades WHERE id = ?", [habilidad_id]);
+    await runQuery(
+      `INSERT INTO notificaciones (usuario_id, tipo, mensaje)
+       VALUES (?, 'baja', ?)`,
+      [usuario.id, `Te diste de baja de "${hab?.titulo || "un curso"}"`]
+    );
+
+    return res.json({ message: "Baja registrada correctamente." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error al procesar la baja." });
+  }
+});
+
+// ── Calificaciones ────────────────────────────────────────────────
+app.post("/api/calificaciones", async (req, res) => {
+  const { email, habilidad_id, estrellas } = req.body;
+  if (!email || !habilidad_id || !estrellas)
+    return res.status(400).json({ message: "Faltan campos." });
+  if (![1, 2, 3, 4, 5].includes(Number(estrellas)))
+    return res.status(400).json({ message: "Estrellas debe ser 1–5." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    // Solo si tiene inscripción y progreso >= 60
+    const inscripcion = await getQuery(
+      `SELECT progreso FROM inscripciones
+       WHERE usuario_id = ? AND habilidad_id = ? AND estado IN ('activa','completado')`,
+      [usuario.id, habilidad_id]
+    );
+    if (!inscripcion)
+      return res.status(403).json({ message: "No estás inscrito en este curso." });
+    if ((inscripcion.progreso || 0) < 60)
+      return res.status(403).json({ message: "Debes completar al menos el 60% para calificar." });
+
+    // Solo una calificación por alumno
+    const existe = await getQuery(
+      "SELECT id FROM calificaciones WHERE usuario_id = ? AND habilidad_id = ?",
+      [usuario.id, habilidad_id]
+    );
+    if (existe)
+      return res.status(409).json({ message: "Ya calificaste este curso." });
+
+    await runQuery(
+      "INSERT INTO calificaciones (usuario_id, habilidad_id, estrellas) VALUES (?, ?, ?)",
+      [usuario.id, habilidad_id, Number(estrellas)]
+    );
+
+    const hab = await getQuery("SELECT titulo FROM habilidades WHERE id = ?", [habilidad_id]);
+    await runQuery(
+      `INSERT INTO notificaciones (usuario_id, tipo, mensaje) VALUES (?, 'calificacion', ?)`,
+      [usuario.id, `Calificaste "${hab?.titulo || "un curso"}" con ${estrellas} ⭐`]
+    );
+
+    return res.status(201).json({ message: "Calificación registrada." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error registrando calificación." });
+  }
+});
+
+// ── Historial completo del usuario ────────────────────────────────
+app.get("/api/historial", async (req, res) => {
+  const email =
+    typeof req.query.email === "string" ? req.query.email.trim().toLowerCase() : "";
+  if (!email) return res.status(400).json({ message: "Email requerido." });
+  try {
+    const usuario = await getQuery(
+      "SELECT id FROM usuarios WHERE lower(correo) = lower(?)", [email]
+    );
+    if (!usuario) return res.status(404).json({ message: "Usuario no encontrado." });
+
+    const uid = usuario.id;
+    const eventos = [];
+
+    // 1) Matches generados
+    const matchRows = await allQuery(
+      `SELECT m.creado_en AS fecha, h.titulo, h.categoria,
+              m.match_percent, m.razon
+       FROM matches m
+       JOIN habilidades h ON h.id = m.habilidad_id
+       WHERE m.usuario_id = ? AND m.rechazado = 0
+       ORDER BY m.creado_en DESC LIMIT 30`,
+      [uid]
+    );
+    matchRows.forEach(r => eventos.push({
+      tipo: "match",
+      titulo: `Match con "${r.titulo}"`,
+      subtitulo: r.razon || `${r.match_percent}% de compatibilidad`,
+      fecha: r.fecha,
+    }));
+
+    // 2) Inscripciones
+    const inscRows = await allQuery(
+      `SELECT i.creado_en AS fecha, i.estado, h.titulo, h.categoria,
+              u.nombres || ' ' || u.apellido_paterno AS instructor
+       FROM inscripciones i
+       JOIN habilidades h ON h.id = i.habilidad_id
+       JOIN usuarios    u ON u.id = h.usuario_id
+       WHERE i.usuario_id = ?
+       ORDER BY i.creado_en DESC`,
+      [uid]
+    );
+    inscRows.forEach(r => {
+      const tipo = r.estado === "baja" ? "baja" : "inscrito";
+      eventos.push({
+        tipo,
+        titulo: tipo === "baja"
+          ? `Baja de "${r.titulo}"`
+          : `Inscripción en "${r.titulo}"`,
+        subtitulo: `Con ${r.instructor}`,
+        fecha: r.fecha,
+      });
+    });
+
+    // 3) Solicitudes enviadas
+    const solRows = await allQuery(
+      `SELECT s.creado_en AS fecha, s.estado,
+              u.nombres || ' ' || u.apellido_paterno AS para_nombre
+       FROM solicitudes s
+       JOIN usuarios u ON u.id = s.para_usuario_id
+       WHERE s.de_usuario_id = ?
+       ORDER BY s.creado_en DESC`,
+      [uid]
+    );
+    solRows.forEach(r => eventos.push({
+      tipo: "solicitud",
+      titulo: `Solicitud enviada a ${r.para_nombre}`,
+      subtitulo: `Estado: ${r.estado}`,
+      fecha: r.fecha,
+    }));
+
+    // 4) Solicitudes recibidas
+    const solRecRows = await allQuery(
+      `SELECT s.creado_en AS fecha, s.estado,
+              u.nombres || ' ' || u.apellido_paterno AS de_nombre
+       FROM solicitudes s
+       JOIN usuarios u ON u.id = s.de_usuario_id
+       WHERE s.para_usuario_id = ?
+       ORDER BY s.creado_en DESC`,
+      [uid]
+    );
+    solRecRows.forEach(r => eventos.push({
+      tipo: "solicitud",
+      titulo: `Solicitud recibida de ${r.de_nombre}`,
+      subtitulo: `Estado: ${r.estado}`,
+      fecha: r.fecha,
+    }));
+
+    // 5) Habilidades publicadas
+    const habRows = await allQuery(
+      `SELECT creado_en AS fecha, titulo, categoria, nivel, activo
+       FROM habilidades WHERE usuario_id = ?
+       ORDER BY creado_en DESC`,
+      [uid]
+    );
+    habRows.forEach(r => eventos.push({
+      tipo: "publicada",
+      titulo: `Publicaste "${r.titulo}"`,
+      subtitulo: `${r.categoria} · ${r.nivel}${!r.activo ? " (eliminada)" : ""}`,
+      fecha: r.fecha,
+    }));
+
+    // 6) Calificaciones dadas
+    const calRows = await allQuery(
+      `SELECT c.creado_en AS fecha, c.estrellas, h.titulo
+       FROM calificaciones c
+       JOIN habilidades h ON h.id = c.habilidad_id
+       WHERE c.usuario_id = ?
+       ORDER BY c.creado_en DESC`,
+      [uid]
+    );
+    calRows.forEach(r => eventos.push({
+      tipo: "calificacion",
+      titulo: `Calificaste "${r.titulo}"`,
+      subtitulo: `${"⭐".repeat(r.estrellas)} ${r.estrellas}/5`,
+      fecha: r.fecha,
+    }));
+
+    // Ordenar por fecha descendente
+    eventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    return res.json({ historial: eventos });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Error cargando historial." });
+  }
+});
+
+
 // ── INICIAR SERVIDOR ──────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log(`🚀 SkillSwap corriendo en http://localhost:${PORT}`);
