@@ -23,7 +23,7 @@
         <button class="ss-nav-link active" type="button" onclick="window.location.href='/dashboard'">Inicio</button>
         <button class="ss-nav-link" type="button">Enseñar</button>
         <button class="ss-nav-link" type="button">Mis cursos</button>
-        <button class="ss-nav-link" type="button">Historial</button>
+        <button class="ss-nav-link" type="button" onclick="window.location.href='/mensajeria'">Mensajeria</button>
       </div>
 
       <div class="ss-nav-right">
@@ -45,27 +45,27 @@
           <div id="notif-panel">
             <div class="notif-panel-header">
               <h3>Notificaciones</h3>
-              <span onclick="event.stopPropagation(); marcarTodasLeidas(); renderizarPanel(); actualizarBadge()">
-                Marcar todas como leídas
+              <span onclick="event.stopPropagation(); marcarTodasLeidasDesdeUI()">
+                Marcar todas como leidas
               </span>
             </div>
             <div id="notif-lista"></div>
           </div>
         </div>
 
-        <button class="ss-avatar" id="ss-nav-avatar" onclick="window.location.href='/perfil'" style="border: none; padding: 0; cursor: pointer;" title="Ir al perfil">CA</button>
+        <button class="ss-avatar" id="ss-nav-avatar" type="button" onclick="window.location.href='/perfil'" title="Ir al perfil">SS</button>
       </div>
     </nav>
 
     <main class="notif-shell">
-      <section class="notif-board">
+      <section class="notif-board notif-board-single">
         <aside class="notif-sidebar">
           <div class="notif-profile-card">
             <div class="notif-profile-top">
-              <div class="notif-profile-avatar ss-profile-avatar" id="ss-profile-avatar">CA</div>
+              <div class="notif-profile-avatar ss-profile-avatar" id="ss-profile-avatar">SS</div>
               <div>
-                <div class="notif-profile-name" id="ss-profile-name">Carlos Ávila</div>
-                <div class="notif-profile-career" id="ss-profile-career">Ing. en Sistemas</div>
+                <div class="notif-profile-name" id="ss-profile-name">Cargando...</div>
+                <div class="notif-profile-career" id="ss-profile-career">Cargando perfil...</div>
               </div>
             </div>
           </div>
@@ -77,189 +77,36 @@
                   <path d="M5 8a3 3 0 116 0v1.3l1 1.7H4l1-1.7V8zm1.5 4a1.5 1.5 0 003 0" fill="currentColor"/>
                 </svg>
               </span>
-              Notificaciones
+              Lista de notificaciones
             </button>
           </div>
 
-          <div class="notif-categories-card">
-            <div class="notif-sidebar-title">Categorías</div>
-            <div class="notif-category-list">
-              <div class="notif-category-item is-selected">
-                <div class="notif-category-dot dot-all"></div>
-                <span>Todas</span>
-                <span class="notif-category-count">4</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-programming"></div>
-                <span>Programación</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-math"></div>
-                <span>Matemáticas</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-language"></div>
-                <span>Idiomas</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-physics"></div>
-                <span>Física</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-chemistry"></div>
-                <span>Química</span>
-              </div>
-              <div class="notif-category-item">
-                <div class="notif-category-dot dot-writing"></div>
-                <span>Redacción</span>
-              </div>
-              <button class="notif-add-category" type="button">+ Agregar categoría</button>
+          <div class="notif-summary-card">
+            <div class="notif-sidebar-title">Resumen</div>
+            <div class="notif-summary-item">
+              <span>Total</span>
+              <strong id="notif-total-count">0</strong>
             </div>
-          </div>
-
-          <div class="notif-empty-card">
-            <div class="notif-empty-illustration">
-              <div class="notif-empty-bell"></div>
-              <div class="notif-empty-plane"></div>
+            <div class="notif-summary-item">
+              <span>No leidas</span>
+              <strong id="notif-unread-count">0</strong>
             </div>
-            <h3>Sin actividad reciente</h3>
-            <p>No tienes notificaciones nuevas</p>
           </div>
         </aside>
 
         <section class="notif-content">
-          <header class="notif-toolbar">
-            <div class="notif-tabs">
-              <button class="notif-tab is-active" type="button">Notificaciones</button>
-              <button class="notif-tab" type="button">Historial de Intercambios</button>
+          <header class="notif-toolbar notif-toolbar-simple">
+            <div>
+              <h1 class="notif-title">Notificaciones</h1>
+              <p class="notif-subtitle">Aqui se muestran unicamente los registros reales guardados en la base de datos.</p>
             </div>
-
-            <label class="notif-search">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.2"/>
-                <path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-              </svg>
-              <input type="text" placeholder="Buscar notificaciones e historial...">
-            </label>
+            <button class="notif-inline-action secondary" id="notif-mark-read-btn" type="button">
+              Marcar todas como leidas
+            </button>
           </header>
 
           <div class="notif-section">
-            <h2 class="notif-section-heading">Notificaciones recientes</h2>
-
-            <div class="notif-list-card">
-              <article class="notif-row">
-                <div class="notif-row-main">
-                  <div class="notif-user-avatar avatar-pink">AL</div>
-                  <div class="notif-row-copy">
-                    <p><strong>Ana López</strong> te ha enviado un nuevo mensaje</p>
-                    <span><span class="notif-status-dot dot-online"></span>En línea ahora</span>
-                  </div>
-                </div>
-                <div class="notif-row-meta">
-                  <span>ahora mismo</span>
-                  <button type="button" aria-label="Cerrar notificación">×</button>
-                </div>
-              </article>
-
-              <article class="notif-row">
-                <div class="notif-row-main">
-                  <div class="notif-user-avatar avatar-pink">AL</div>
-                  <div class="notif-row-copy">
-                    <p><strong>Ana López</strong> calificó tu intercambio de Estadística</p>
-                    <span class="notif-stars">★ ★ ★ ★ ★ <em>¡Excelente clase! Me fue muy útil.</em></span>
-                  </div>
-                </div>
-                <div class="notif-row-meta">
-                  <span>hace 1 hora</span>
-                  <button type="button" aria-label="Cerrar notificación">×</button>
-                </div>
-              </article>
-
-              <article class="notif-row">
-                <div class="notif-row-main">
-                  <div class="notif-user-avatar avatar-blue">AR</div>
-                  <div class="notif-row-copy">
-                    <p><strong>Andrés Ruiz</strong> te envió una solicitud para intercambiar habilidades.</p>
-                    <span><span class="notif-status-dot dot-soft"></span>hace 2 horas</span>
-                  </div>
-                </div>
-                <div class="notif-row-meta">
-                  <span>hace 2 horas</span>
-                  <button type="button" aria-label="Cerrar notificación">×</button>
-                </div>
-              </article>
-
-              <article class="notif-row">
-                <div class="notif-row-main">
-                  <div class="notif-user-avatar avatar-pink">AL</div>
-                  <div class="notif-row-copy">
-                    <p><strong>Ana López</strong> te calificó con 5 estrellas en Matemáticas.</p>
-                    <span><span class="notif-status-dot dot-soft"></span>ayer</span>
-                  </div>
-                </div>
-                <div class="notif-row-meta">
-                  <span>ayer</span>
-                  <button type="button" aria-label="Cerrar notificación">×</button>
-                </div>
-              </article>
-
-              <button class="notif-inline-action" type="button">Eliminar todas las notificaciones</button>
-            </div>
-          </div>
-
-          <div class="notif-section">
-            <h2 class="notif-section-heading">Historial de Intercambios</h2>
-
-            <div class="notif-history-grid">
-              <article class="notif-history-card">
-                <div class="notif-history-item">
-                  <div class="notif-user-avatar avatar-pink">AL</div>
-                  <div class="notif-history-copy">
-                    <div class="notif-history-title-row">
-                      <p>Intercambio con <strong>Ana López</strong></p>
-                      <span class="notif-pill pill-done">FINALIZADO</span>
-                    </div>
-                    <span>Estadística · 19 Abr 2026</span>
-                  </div>
-                </div>
-
-                <div class="notif-history-item">
-                  <div class="notif-user-avatar avatar-blue">AR</div>
-                  <div class="notif-history-copy">
-                    <div class="notif-history-title-row">
-                      <p><strong>Andrés Ruiz</strong> te envió una solicitud</p>
-                    </div>
-                    <span>Álgebra · 13 Abr 2026</span>
-                  </div>
-                </div>
-              </article>
-
-              <article class="notif-history-card">
-                <div class="notif-history-item">
-                  <div class="notif-user-avatar avatar-blue">AR</div>
-                  <div class="notif-history-copy">
-                    <div class="notif-history-title-row">
-                      <p>Intercambio con <strong>Andrés Ruiz</strong></p>
-                      <span class="notif-pill pill-cancelled">CANCELADO</span>
-                    </div>
-                    <span>Idioma inglés · 12 Abr 2026</span>
-                  </div>
-                </div>
-
-                <div class="notif-history-item">
-                  <div class="notif-user-avatar avatar-purple">MG</div>
-                  <div class="notif-history-copy">
-                    <div class="notif-history-title-row">
-                      <p>Intercambio con <strong>María González</strong></p>
-                      <span class="notif-pill pill-progress">EN CURSO</span>
-                    </div>
-                    <span>Álgebra · 13 Abr 2026</span>
-                  </div>
-                </div>
-              </article>
-            </div>
-
-            <button class="notif-inline-action secondary" type="button">Limpiar historial antiguo</button>
+            <div class="notif-list-card notif-list-card-full" id="notif-full-list"></div>
           </div>
         </section>
       </section>
@@ -267,7 +114,6 @@
   </div>
 
   <script src="/js/session.js"></script>
-  <script src="/js/dashboard.js"></script>
   <script src="/js/notificaciones.js"></script>
 </body>
 </html>
